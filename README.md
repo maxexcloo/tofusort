@@ -15,10 +15,10 @@
 
 ### Advanced Features
 
-- **Validation blocks**: Sorted by `error_message` content
 - **Dynamic blocks**: Sorted by label name, then by `for_each` expression
 - **Meta-arguments**: `count`/`for_each` first, `lifecycle`/`depends_on` last
 - **Multi-line attributes**: Proper spacing with blank lines
+- **Validation blocks**: Sorted by `error_message` content
 
 ## Installation
 
@@ -34,17 +34,17 @@ mise run build
 ### Basic Commands
 
 ```bash
+# Check if files are sorted (CI mode)
+tofusort check main.tf
+
+# Preview changes (dry run)
+tofusort sort --dry-run main.tf
+
 # Sort a single file
 tofusort sort main.tf
 
 # Sort directory recursively  
 tofusort sort -r ./modules
-
-# Preview changes (dry run)
-tofusort sort --dry-run main.tf
-
-# Check if files are sorted (CI mode)
-tofusort check main.tf
 ```
 
 ### Development Commands
@@ -53,12 +53,12 @@ tofusort check main.tf
 # Build binary
 mise run build
 
-# Run all checks
-mise run check
-
 # Format and lint
 mise run fmt
 mise run lint
+
+# Run all checks
+mise run check
 
 # Test development build
 mise run dev
@@ -127,13 +127,6 @@ mise run dev
 ```
 
 > **🛠️ Complete development guide**: See [CLAUDE.md](CLAUDE.md#development-workflow-standards) for detailed workflow
-
-## Future Enhancements
-
-- **Object literal sorting**: Sort keys within HCL objects and `jsonencode()` calls
-- **Array element sorting**: Sort elements in simple array literals
-- **Custom sort orders**: Configuration file for project-specific rules
-- **Semantic grouping**: Option to group related resources together
 
 ---
 

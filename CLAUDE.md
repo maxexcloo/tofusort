@@ -9,7 +9,7 @@
 
 ### Organization
 - **Config/Data**: Alphabetical and recursive (imports, dependencies, object keys)
-- **Documentation**: Sort sections, lists, and references alphabetically when logical
+- **Documentation**: Sort alphabetically and recursively when it makes logical sense - apply to sections, subsections, lists, and references
 - **Files**: Alphabetical in documentation and directories
 - **Functions**: Group by purpose, alphabetical within groups
 - **Variables**: Alphabetical within scope
@@ -27,20 +27,20 @@
 ## Development Guidelines
 
 ### Documentation Structure
-- **README.md**: Tool overview and usage guide
 - **ARCHITECTURE.md**: Technical design and implementation details
 - **CLAUDE.md**: Development standards and project guidelines (this file)
+- **README.md**: Tool overview and usage guide
 
 ### Contribution Standards
-- **Feature Changes**: Update README.md and ARCHITECTURE.md when adding features
 - **Code Changes**: Follow sorting rules and maintain test coverage
 - **Documentation**: Keep all docs synchronized and cross-referenced
+- **Feature Changes**: Update README.md and ARCHITECTURE.md when adding features
 
 ## Command Interface Standards
-- **Consistent flags**: Use standard Unix-style flags (-r, --dry-run)
 - **Clear output**: Provide informative messages about what was processed
-- **Exit codes**: 0 for success, 1 for failure, follow standard conventions
+- **Consistent flags**: Use standard Unix-style flags (-r, --dry-run)
 - **Error messages**: Include file names and line numbers where possible
+- **Exit codes**: 0 for success, 1 for failure, follow standard conventions
 
 ## Development Workflow Standards
 
@@ -51,23 +51,23 @@
 
 ### Required Development Tasks
 - **build**: Create production binary
-- **test**: Run full test suite
-- **lint**: Code quality checks
-- **fmt**: Code formatting
 - **check**: All validation (fmt + lint + test)
 - **dev**: Development validation cycle
+- **fmt**: Code formatting
+- **lint**: Code quality checks
+- **test**: Run full test suite
 
 ## Error Handling Standards
+- **Contextual errors**: Show surrounding code when possible
 - **Graceful degradation**: Continue processing when individual files fail
 - **Informative messages**: Include file paths and line numbers
-- **Contextual errors**: Show surrounding code when possible
 - **User-friendly output**: Clear explanations for common issues
 
 ## Extension Guidelines
-- **Plugin architecture**: Design for future extensibility
-- **Configuration files**: Plan for user customization
 - **Backward compatibility**: Maintain API stability
+- **Configuration files**: Plan for user customization
 - **Feature flags**: Allow gradual feature rollout
+- **Plugin architecture**: Design for future extensibility
 
 ---
 *Development guide for the tofusort open source project.*

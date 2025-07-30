@@ -39,16 +39,16 @@ graph TD
 **Purpose**: Handle command-line interface, file operations, and user interaction.
 
 **Components**:
+- `check.go`: Check command for CI/CD validation
 - `main.go`: Application entry point and root command setup
 - `sort.go`: Sort command implementation with file discovery and processing
-- `check.go`: Check command for CI/CD validation
 
 **Responsibilities**:
-- Parse command-line arguments using Cobra
-- Discover files (single file, directory, recursive)
 - Coordinate parsing and sorting operations
+- Discover files (single file, directory, recursive)
 - Handle dry-run mode and output formatting
 - Manage error reporting and exit codes
+- Parse command-line arguments using Cobra
 
 ### 2. Parser Layer (`internal/parser/`)
 
@@ -58,11 +58,11 @@ graph TD
 - `parser.go`: HCL parsing and formatting logic
 
 **Responsibilities**:
-- Parse HCL files using `github.com/hashicorp/hcl/v2/hclwrite`
-- Integrate with `tofu fmt` for consistent formatting
-- Handle both `.tf` and `.tfvars` files
-- Preserve comments and expressions
 - Clean up excessive blank lines
+- Handle both `.tf` and `.tfvars` files
+- Integrate with `tofu fmt` for consistent formatting
+- Parse HCL files using `github.com/hashicorp/hcl/v2/hclwrite`
+- Preserve comments and expressions
 
 **Key Features**:
 - AST-based parsing for reliable handling
@@ -79,17 +79,17 @@ graph TD
 - `sorter_test.go`: Comprehensive test suite
 
 **Responsibilities**:
-- Sort top-level blocks by type and name
-- Sort attributes within blocks
 - Handle meta-arguments (count, for_each, lifecycle, depends_on)
-- Sort nested blocks recursively
 - Manage spacing and formatting rules
+- Sort attributes within blocks
+- Sort nested blocks recursively
+- Sort top-level blocks by type and name
 
 **Advanced Features**:
-- **Validation Block Sorting**: Sort by `error_message` content
-- **Dynamic Block Sorting**: Sort by label name, then `for_each` expression
 - **Attribute Categorization**: Early, regular, and late attributes
+- **Dynamic Block Sorting**: Sort by label name, then `for_each` expression
 - **Spacing Management**: Single-line vs multi-line attribute handling
+- **Validation Block Sorting**: Sort by `error_message` content
 
 ## Data Flow
 
@@ -149,7 +149,6 @@ func (s *Sorter) getDynamicForEachContent(block *hclwrite.Block) string {
 }
 ```
 
-
 ## Key Design Decisions
 
 ### 1. AST-Based Parsing
@@ -178,15 +177,6 @@ func (s *Sorter) getDynamicForEachContent(block *hclwrite.Block) string {
 - **Concurrent Processing**: Ready for parallel file processing (future enhancement)
 - **AST Reuse**: Minimal AST manipulation for better performance
 
-## Extension Points
-
-The architecture supports several future enhancements:
-
-1. **Object Literal Sorting**: Framework exists for expression-level sorting
-2. **Custom Sort Orders**: Configuration system can be added
-3. **Plugin System**: Sorter interface allows for custom sorting rules
-4. **Format Integration**: Parser layer abstracts formatting concerns
-
 ## Dependencies
 
 - `github.com/hashicorp/hcl/v2`: HCL parsing and manipulation
@@ -195,6 +185,6 @@ The architecture supports several future enhancements:
 
 ## Testing Strategy
 
-- **Unit Tests**: Comprehensive coverage for sorting logic
 - **Integration Tests**: Sample files validate end-to-end functionality
 - **Regression Tests**: Ensure changes don't break existing functionality
+- **Unit Tests**: Comprehensive coverage for sorting logic
