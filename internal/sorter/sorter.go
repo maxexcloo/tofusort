@@ -142,13 +142,13 @@ func (s *Sorter) sortBlockAttributes(block *hclwrite.Block) {
 
 	for name, attr := range attrs {
 		expr := attr.Expr()
-		// Sort the expression if it contains objects
-		sortedExpr := s.sortExpression(expr)
+		// TEMPORARILY DISABLED: Expression sorting is causing syntax corruption
+		// sortedExpr := s.sortExpression(expr)
 
-		isMultiLine := s.isMultiLineAttribute(sortedExpr)
+		isMultiLine := s.isMultiLineAttribute(expr)
 		attrInfo := AttrInfo{
 			Name:        name,
-			Expr:        sortedExpr,
+			Expr:        expr,
 			IsMultiLine: isMultiLine,
 		}
 
@@ -300,46 +300,21 @@ func (s *Sorter) writeAttributeGroup(body *hclwrite.Body, attrs []AttrInfo) {
 
 	// Write single-line attributes first (grouped together)
 	for _, attrInfo := range singleLineAttrs {
-		body.SetAttributeRaw(attrInfo.Name, attrInfo.Expr.BuildTokens(nil))
+		body.SetAttributeValue(attrInfo.Name, attrInfo.Expr)
 	}
 
 	// Write multi-line attributes with blank lines before each one
 	for _, attrInfo := range multiLineAttrs {
 		// Add blank line before each multi-line attribute
 		body.AppendNewline()
-		body.SetAttributeRaw(attrInfo.Name, attrInfo.Expr.BuildTokens(nil))
+		body.SetAttributeValue(attrInfo.Name, attrInfo.Expr)
 	}
 }
 
 // sortExpression attempts to sort object expressions (both HCL objects and jsonencode calls)
 func (s *Sorter) sortExpression(expr *hclwrite.Expression) *hclwrite.Expression {
-	tokens := expr.BuildTokens(nil)
-	if len(tokens) == 0 {
-		return expr
-	}
-
-	// Try to detect and sort jsonencode() calls
-	if s.isJsonEncodeCall(tokens) {
-		if sorted := s.sortJsonEncode(tokens); sorted != nil {
-			return hclwrite.NewExpressionRaw(sorted)
-		}
-	}
-
-	// Try to detect and sort object literals
-	if s.isObjectLiteral(tokens) {
-		if sorted := s.sortObjectLiteral(tokens); sorted != nil {
-			return hclwrite.NewExpressionRaw(sorted)
-		}
-	}
-
-	// Try to detect and sort array literals
-	if s.isArrayLiteral(tokens) {
-		if sorted := s.sortArrayLiteral(tokens); sorted != nil {
-			return hclwrite.NewExpressionRaw(sorted)
-		}
-	}
-
-	// Return original expression if we can't sort it
+	// TEMPORARILY DISABLED: Object/array sorting is causing syntax corruption
+	// Need to fix key parsing for complex expressions before re-enabling
 	return expr
 }
 
