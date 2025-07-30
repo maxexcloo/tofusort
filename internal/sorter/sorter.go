@@ -157,12 +157,12 @@ func (s *Sorter) sortBlockAttributes(block *hclwrite.Block) {
 	for name, attr := range attrs {
 		expr := attr.Expr()
 		// DISABLED: Expression sorting causes corruption - keep original expressions
-		// sortedExpr := s.sortExpression(expr)
+		sortedExpr := s.sortExpression(expr)
 
-		isMultiLine := s.isMultiLineAttribute(expr)
+		isMultiLine := s.isMultiLineAttribute(sortedExpr)
 		attrInfo := AttrInfo{
 			Name:        name,
-			Expr:        expr,
+			Expr:        sortedExpr,
 			IsMultiLine: isMultiLine,
 		}
 
@@ -360,8 +360,16 @@ func (s *Sorter) writeAttributeGroup(body *hclwrite.Body, attrs []AttrInfo) {
 
 // sortExpression attempts to sort object expressions (both HCL objects and jsonencode calls)
 func (s *Sorter) sortExpression(expr *hclwrite.Expression) *hclwrite.Expression {
-	// TEMPORARILY DISABLED: Object/array sorting is causing syntax corruption
-	// Need to fix key parsing for complex expressions before re-enabling
+	tokens := expr.BuildTokens(nil)
+	
+	// Only attempt sorting for simple object literals to avoid corruption
+	if s.isSimpleObjectLiteral(tokens) {
+		// TODO: Implement safe object literal sorting
+		// For now, return original to avoid corruption
+		return expr
+	}
+	
+	// Return original expression if not a simple object literal
 	return expr
 }
 
@@ -951,6 +959,70 @@ func (s *Sorter) getDynamicContentSortKey(block *hclwrite.Block) string {
 	}
 
 	return ""
+}
+
+// isSimpleObjectLiteral checks if tokens represent a simple object literal without complex expressions
+func (s *Sorter) isSimpleObjectLiteral(tokens hclwrite.Tokens) bool {
+	if len(tokens) < 2 {
+		return false
+	}
+	
+	// Must start with { and end with }
+	start := -1
+	end := -1
+	
+	for i, token := range tokens {
+		if token.Type == hclsyntax.TokenOBrace && start == -1 {
+			start = i
+		}
+		if token.Type == hclsyntax.TokenCBrace {
+			end = i
+		}
+	}
+	
+	if start == -1 || end == -1 || start >= end {
+		return false
+	}
+	
+	// Check if there are any function calls, complex expressions, or interpolations
+	// that could cause corruption when we manipulate tokens
+	inString := false
+	stringDelim := byte(0)
+	
+	for i := start + 1; i < end; i++ {
+		token := tokens[i]
+		tokenBytes := token.Bytes
+		
+		if len(tokenBytes) == 0 {
+			continue
+		}
+		
+		// Track string state
+		if !inString && (tokenBytes[0] == '"' || tokenBytes[0] == '\'') {
+			inString = true
+			stringDelim = tokenBytes[0]
+			continue
+		}
+		if inString && tokenBytes[0] == stringDelim {
+			inString = false
+			continue
+		}
+		if inString {
+			continue
+		}
+		
+		// Avoid complex expressions that could cause corruption
+		switch token.Type {
+		case hclsyntax.TokenOParen, hclsyntax.TokenCParen:
+			// Function calls - avoid
+			return false
+		case hclsyntax.TokenTemplateInterp, hclsyntax.TokenTemplateControl:
+			// String interpolation - avoid
+			return false
+		}
+	}
+	
+	return true
 }
 
 // isArrayLiteral checks if tokens represent an array literal [ ... ]
