@@ -4,6 +4,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 )
@@ -360,16 +361,50 @@ func (s *Sorter) writeAttributeGroup(body *hclwrite.Body, attrs []AttrInfo) {
 
 // sortExpression attempts to sort object expressions (both HCL objects and jsonencode calls)
 func (s *Sorter) sortExpression(expr *hclwrite.Expression) *hclwrite.Expression {
+	// Get the source representation of the expression
 	tokens := expr.BuildTokens(nil)
+	var source strings.Builder
+	for _, token := range tokens {
+		source.Write(token.Bytes)
+	}
+	sourceText := source.String()
 	
-	// Only attempt sorting for simple object literals to avoid corruption
-	if s.isSimpleObjectLiteral(tokens) {
-		// TODO: Implement safe object literal sorting
-		// For now, return original to avoid corruption
-		return expr
+	// Handle object() wrapped expressions
+	if strings.HasPrefix(sourceText, "object(") && strings.HasSuffix(sourceText, ")") {
+		inner := sourceText[7 : len(sourceText)-1] // Remove "object(" and ")"
+		if s.isSimpleObjectLiteralText(inner) {
+			sortedInner := s.sortObjectLiteralText(inner)
+			if sortedInner != inner {
+				sortedText := "object(" + sortedInner + ")"
+				// Parse the sorted text back into an expression
+				tempFile, diags := hclwrite.ParseConfig([]byte("temp = "+sortedText), "", hcl.Pos{Line: 1, Column: 1})
+				if !diags.HasErrors() && tempFile != nil {
+					body := tempFile.Body()
+					attrs := body.Attributes()
+					if tempAttr, exists := attrs["temp"]; exists {
+						return tempAttr.Expr()
+					}
+				}
+			}
+		}
 	}
 	
-	// Return original expression if not a simple object literal
+	// Only attempt to sort simple object literals
+	if s.isSimpleObjectLiteralText(sourceText) {
+		sortedText := s.sortObjectLiteralText(sourceText)
+		if sortedText != sourceText {
+			// Parse the sorted text back into an expression
+			tempFile, diags := hclwrite.ParseConfig([]byte("temp = "+sortedText), "", hcl.Pos{Line: 1, Column: 1})
+			if !diags.HasErrors() && tempFile != nil {
+				body := tempFile.Body()
+				attrs := body.Attributes()
+				if tempAttr, exists := attrs["temp"]; exists {
+					return tempAttr.Expr()
+				}
+			}
+		}
+	}
+	
 	return expr
 }
 
@@ -1023,6 +1058,190 @@ func (s *Sorter) isSimpleObjectLiteral(tokens hclwrite.Tokens) bool {
 	}
 	
 	return true
+}
+
+// isSimpleObjectLiteralText checks if text represents a simple object literal
+func (s *Sorter) isSimpleObjectLiteralText(text string) bool {
+	text = strings.TrimSpace(text)
+	if !strings.HasPrefix(text, "{") || !strings.HasSuffix(text, "}") {
+		return false
+	}
+	
+	// Avoid complex expressions that could cause issues
+	// Allow object() calls but avoid other complex expressions
+	if strings.Contains(text, "${") {
+		return false
+	}
+	
+	// Allow object() function calls as they're common in HCL type definitions
+	if strings.Contains(text, "(") && !strings.Contains(text, "object(") {
+		return false
+	}
+	
+	return true
+}
+
+// sortObjectLiteralText sorts the keys in an object literal text
+func (s *Sorter) sortObjectLiteralText(text string) string {
+	text = strings.TrimSpace(text)
+	if len(text) < 2 {
+		return text
+	}
+	
+	// Remove outer braces
+	inner := strings.TrimSpace(text[1 : len(text)-1])
+	if inner == "" {
+		return text // Empty object
+	}
+	
+	// Parse key-value pairs
+	entries := s.parseObjectEntriesFromText(inner)
+	if len(entries) == 0 {
+		return text // Parsing failed, return original
+	}
+	
+	// Sort entries alphabetically by key (case-insensitive)
+	sort.Slice(entries, func(i, j int) bool {
+		return strings.ToLower(entries[i].key) < strings.ToLower(entries[j].key)
+	})
+	
+	// Rebuild the object
+	var result strings.Builder
+	result.WriteString("{\n")
+	
+	for i, entry := range entries {
+		result.WriteString("  ")
+		result.WriteString(entry.key)
+		result.WriteString(" = ")
+		result.WriteString(entry.value)
+		if i < len(entries)-1 {
+			result.WriteString("\n")
+		}
+	}
+	
+	result.WriteString("\n}")
+	return result.String()
+}
+
+type objectEntry struct {
+	key   string
+	value string
+}
+
+// parseObjectEntriesFromText parses key-value pairs from object literal text
+func (s *Sorter) parseObjectEntriesFromText(text string) []objectEntry {
+	var entries []objectEntry
+	
+	// Use a simple state machine to parse key-value pairs
+	i := 0
+	for i < len(text) {
+		// Skip whitespace and comments
+		for i < len(text) && (text[i] == ' ' || text[i] == '\t' || text[i] == '\n' || text[i] == '\r') {
+			i++
+		}
+		if i >= len(text) {
+			break
+		}
+		
+		// Skip comments
+		if i < len(text)-1 && text[i] == '/' && text[i+1] == '/' {
+			// Skip to end of line
+			for i < len(text) && text[i] != '\n' {
+				i++
+			}
+			continue
+		}
+		if text[i] == '#' {
+			// Skip to end of line
+			for i < len(text) && text[i] != '\n' {
+				i++
+			}
+			continue
+		}
+		
+		// Parse key
+		keyStart := i
+		for i < len(text) && text[i] != '=' && text[i] != ' ' && text[i] != '\t' {
+			i++
+		}
+		if i >= len(text) {
+			break
+		}
+		
+		key := strings.TrimSpace(text[keyStart:i])
+		if key == "" {
+			break
+		}
+		
+		// Skip whitespace to equals sign
+		for i < len(text) && (text[i] == ' ' || text[i] == '\t') {
+			i++
+		}
+		if i >= len(text) || text[i] != '=' {
+			break
+		}
+		i++ // Skip equals sign
+		
+		// Skip whitespace after equals
+		for i < len(text) && (text[i] == ' ' || text[i] == '\t') {
+			i++
+		}
+		if i >= len(text) {
+			break
+		}
+		
+		// Parse value
+		valueStart := i
+		if text[i] == '{' {
+			// Parse nested object
+			braceCount := 1
+			i++
+			for i < len(text) && braceCount > 0 {
+				if text[i] == '{' {
+					braceCount++
+				} else if text[i] == '}' {
+					braceCount--
+				}
+				i++
+			}
+		} else if text[i] == '"' {
+			// Parse quoted string
+			i++
+			for i < len(text) && text[i] != '"' {
+				if text[i] == '\\' {
+					i++ // Skip escaped character
+				}
+				i++
+			}
+			if i < len(text) {
+				i++ // Skip closing quote
+			}
+		} else {
+			// Parse unquoted value (until newline or comma)
+			for i < len(text) && text[i] != '\n' && text[i] != ',' {
+				i++
+			}
+		}
+		
+		value := strings.TrimSpace(text[valueStart:i])
+		
+		// Handle nested objects recursively
+		if strings.HasPrefix(value, "{") && strings.HasSuffix(value, "}") {
+			if s.isSimpleObjectLiteralText(value) {
+				sortedNested := s.sortObjectLiteralText(value)
+				value = sortedNested
+			}
+		}
+		
+		entries = append(entries, objectEntry{key: key, value: value})
+		
+		// Skip optional comma and whitespace
+		for i < len(text) && (text[i] == ',' || text[i] == ' ' || text[i] == '\t' || text[i] == '\n' || text[i] == '\r') {
+			i++
+		}
+	}
+	
+	return entries
 }
 
 // isArrayLiteral checks if tokens represent an array literal [ ... ]
