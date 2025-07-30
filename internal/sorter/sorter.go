@@ -144,7 +144,7 @@ func (s *Sorter) sortBlockAttributes(block *hclwrite.Block) {
 		expr := attr.Expr()
 		// Sort the expression if it contains objects
 		sortedExpr := s.sortExpression(expr)
-		
+
 		isMultiLine := s.isMultiLineAttribute(sortedExpr)
 		attrInfo := AttrInfo{
 			Name:        name,
@@ -184,8 +184,8 @@ func (s *Sorter) sortBlockAttributes(block *hclwrite.Block) {
 		return s.compareLateAttributes(lateAttrs[i].Name, lateAttrs[j].Name)
 	})
 	sort.Slice(regularBlocks, func(i, j int) bool {
-		return s.compareBlocks(BlockInfo{Block: regularBlocks[i], Type: regularBlocks[i].Type()}, 
-		                       BlockInfo{Block: regularBlocks[j], Type: regularBlocks[j].Type()})
+		return s.compareBlocks(BlockInfo{Block: regularBlocks[i], Type: regularBlocks[i].Type()},
+			BlockInfo{Block: regularBlocks[j], Type: regularBlocks[j].Type()})
 	})
 
 	// Now rebuild the body in the correct order
@@ -323,10 +323,10 @@ func (s *Sorter) getValidationErrorMessage(block *hclwrite.Block) string {
 	if block.Type() != "validation" {
 		return ""
 	}
-	
+
 	body := block.Body()
 	attrs := body.Attributes()
-	
+
 	if errorMsgAttr, exists := attrs["error_message"]; exists {
 		// Extract the string value from the expression
 		tokens := errorMsgAttr.Expr().BuildTokens(nil)
@@ -341,7 +341,7 @@ func (s *Sorter) getValidationErrorMessage(block *hclwrite.Block) string {
 			}
 		}
 	}
-	
+
 	return ""
 }
 
@@ -350,12 +350,12 @@ func (s *Sorter) getDynamicBlockLabel(block *hclwrite.Block) string {
 	if block.Type() != "dynamic" {
 		return ""
 	}
-	
+
 	labels := block.Labels()
 	if len(labels) > 0 {
 		return labels[0]
 	}
-	
+
 	return ""
 }
 
@@ -364,10 +364,10 @@ func (s *Sorter) getDynamicForEachContent(block *hclwrite.Block) string {
 	if block.Type() != "dynamic" {
 		return ""
 	}
-	
+
 	body := block.Body()
 	attrs := body.Attributes()
-	
+
 	if forEachAttr, exists := attrs["for_each"]; exists {
 		// Convert the expression to string for comparison
 		tokens := forEachAttr.Expr().BuildTokens(nil)
@@ -377,6 +377,6 @@ func (s *Sorter) getDynamicForEachContent(block *hclwrite.Block) string {
 		}
 		return content.String()
 	}
-	
+
 	return ""
 }

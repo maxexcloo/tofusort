@@ -18,7 +18,8 @@ func TestSortSimpleProvider(t *testing.T) {
 
   alias    = "test"
   endpoint = "https://example.com"
-}`
+}
+`
 
 	testSorting(t, input, expected)
 }

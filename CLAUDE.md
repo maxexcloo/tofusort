@@ -25,13 +25,13 @@
 - **Trailing newlines**: Required in all files
 
 ## Project Structure
-- **.mise.toml**: Development environment configuration
+- **.mise.toml**: Development environment configuration with tasks
 - **cmd/tofusort/**: Main CLI application
 - **internal/parser/**: HCL parsing logic using hclwrite
 - **internal/sorter/**: Sorting algorithms for different block types
-- **internal/formatter/**: Integration with tofu fmt
 - **sample/**: Test Terraform files for validation
 - **go.mod**: Go module dependencies
+- **ARCHITECTURE.md**: System design and component documentation
 
 ## Project Specs
 
@@ -44,7 +44,7 @@
 - **Nested sorting**: Recursive alphabetical sorting of all nested structures
 - **Parsing strategy**: HashiCorp's HCL v2 native parser (hclwrite package)
 - **Spacing rules**: Single-line attributes grouped, multi-line attributes with blank lines
-- **tofu fmt integration**: Pre and post formatting for consistency
+- **Advanced block sorting**: Validation blocks by error_message, dynamic blocks by label and for_each
 
 ### Technical Implementation
 - **Parser**: Use `github.com/hashicorp/hcl/v2/hclwrite` for AST manipulation
@@ -79,16 +79,15 @@ mise install
 mise list
 ```
 
-**.mise.toml** configuration:
-```toml
-[tools]
-go = "1.23"
-golangci-lint = "latest"
-goreleaser = "latest"
-
-[env]
-GOPATH = "{{env.HOME}}/go"
-PATH = "{{env.GOPATH}}/bin:{{env.PATH}}"
+**.mise.toml** configuration includes tasks:
+```bash
+# Development tasks
+mise run build    # Build binary
+mise run test     # Run tests
+mise run lint     # Run linter
+mise run fmt      # Format code
+mise run check    # All checks
+mise run dev      # Build and test on samples
 ```
 
 ## Dependencies
@@ -115,9 +114,6 @@ tofusort sort -r ./modules
 # Dry run to see what would change
 tofusort sort --dry-run main.tf
 
-# Custom spacing rules
-tofusort sort --compact main.tf
-
 # Check if files are sorted (CI mode)
 tofusort check main.tf
 ```
@@ -125,23 +121,19 @@ tofusort check main.tf
 ## Development Workflow
 ```bash
 # Initial setup
-mise install  # Installs Go and tools defined in .mise.toml
-go mod download
+mise install
 
-# Test
+# Development tasks (using mise)
+mise run build     # Build the binary
+mise run test      # Run all tests
+mise run lint      # Run linter
+mise run fmt       # Format code
+mise run check     # Run all checks
+mise run dev       # Build and test on samples
+
+# Manual commands (if needed)
 go test ./...
-
-# Run locally
-go run ./cmd/tofusort sort sample/example.tf
-
-# Build
 go build -o tofusort ./cmd/tofusort
-
-# Lint
-golangci-lint run
-
-# Format
-go fmt ./...
 ```
 
 ## Error Handling
