@@ -64,27 +64,15 @@ mise run lint
 mise run dev
 ```
 
-## Sorting Rules
+## How It Works
 
-### Block Types
-1. `terraform` → `provider` → `variable` → `locals` → `data` → `resource` → `module` → `output`
-2. Within types: alphabetical by name
-3. Nested blocks: recursive application of same rules
+Tofusort applies consistent sorting rules:
+- **Block types**: terraform → provider → variable → locals → data → resource → module → output
+- **Attributes**: Alphabetical with meta-argument priorities
+- **Special handling**: Validation and dynamic blocks have custom sort logic
+- **Spacing**: Automatic formatting with proper blank lines
 
-### Attributes
-1. **Early meta-arguments**: `count`, `for_each` (with blank line after)
-2. **Regular attributes**: alphabetical order
-3. **Late meta-arguments**: `lifecycle`, `depends_on`
-
-### Special Blocks
-- **Validation**: Sorted by `error_message` content
-- **Dynamic**: Sorted by label, then `for_each` expression
-- **Lifecycle**: Always appears last within parent block
-
-### Spacing
-- Single-line attributes: grouped together
-- Multi-line attributes: blank line before each
-- Nested blocks: blank line before each
+> **📋 Complete sorting rules**: See [ARCHITECTURE.md](ARCHITECTURE.md#sorting-algorithm) for detailed specifications
 
 ## Example
 
@@ -118,29 +106,27 @@ provider "github" {
 }
 ```
 
-## Architecture
+## Documentation
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed system design and component documentation.
+- **[ARCHITECTURE.md](ARCHITECTURE.md)**: Technical design, components, and algorithms
+- **[CLAUDE.md](CLAUDE.md)**: Development standards and contribution guidelines
 
 ## Development
 
-### Environment Setup
+Quick start for contributors:
+
 ```bash
-# Install tools and dependencies
+# Setup environment
 mise install
 
-# Run development build and test
-mise run dev
-
-# Full check (format, lint, test)
+# Run all checks
 mise run check
+
+# Development workflow
+mise run dev
 ```
 
-### Code Standards
-- **KISS principle**: Keep implementations simple and readable
-- **Error recovery**: Continue processing when individual files fail
-- **Testing**: Unit tests for all sorting logic
-- **Documentation**: Update docs with every feature change
+> **🛠️ Complete development guide**: See [CLAUDE.md](CLAUDE.md#development-workflow-standards) for detailed workflow
 
 ## Future Enhancements
 

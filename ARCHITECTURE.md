@@ -114,52 +114,41 @@ sequenceDiagram
 
 ## Sorting Algorithm
 
-### Block Type Hierarchy
+### Block Type Priority System
+```go
+var blockTypeOrder = map[string]int{
+    "terraform": 0, "provider": 1, "variable": 2, "locals": 3,
+    "data": 4, "resource": 5, "module": 6, "output": 7,
+}
 ```
-terraform (0) → provider (1) → variable (2) → locals (3) → 
-data (4) → resource (5) → module (6) → output (7)
+
+### Meta-Argument Priority System
+```go
+var metaArgumentOrder = map[string]int{
+    "count": 0, "for_each": 1,
+    "lifecycle": 998, "depends_on": 999,
+}
 ```
 
-### Attribute Sorting Rules
+### Special Block Sorting Logic
 
-1. **Early Meta-Arguments** (order: 0-499)
-   - `count` (0)
-   - `for_each` (1)
-
-2. **Regular Attributes** (alphabetical)
-
-3. **Late Meta-Arguments** (order: 998+)
-   - `lifecycle` (998)
-   - `depends_on` (999)
-
-### Special Block Handling
-
-- **Validation Blocks**: Sorted by `error_message` content
-- **Dynamic Blocks**: Sorted by label name, then `for_each` expression
-- **Lifecycle Blocks**: Always appear last within their parent
-
-## File Structure
-
+**Validation Blocks**:
+```go
+func (s *Sorter) getValidationErrorMessage(block *hclwrite.Block) string {
+    // Extracts error_message content for comparison
+}
 ```
-tofusort/
-├── cmd/tofusort/           # CLI application
-│   ├── main.go            # Entry point and root command
-│   ├── sort.go            # Sort command implementation
-│   └── check.go           # Check command implementation
-├── internal/              # Internal packages
-│   ├── parser/            # HCL parsing logic
-│   │   └── parser.go
-│   └── sorter/            # Sorting algorithms
-│       ├── sorter.go      # Main sorting logic
-│       └── sorter_test.go # Test suite
-├── sample/                # Test Terraform files
-├── go.mod                 # Go module definition
-├── .mise.toml            # Development environment
-└── docs/                 # Documentation
-    ├── README.md
-    ├── CLAUDE.md
-    └── ARCHITECTURE.md
+
+**Dynamic Blocks**:
+```go
+func (s *Sorter) getDynamicBlockLabel(block *hclwrite.Block) string {
+    // Extracts label for primary sort
+}
+func (s *Sorter) getDynamicForEachContent(block *hclwrite.Block) string {
+    // Extracts for_each expression for secondary sort  
+}
 ```
+
 
 ## Key Design Decisions
 
