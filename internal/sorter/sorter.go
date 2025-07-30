@@ -38,15 +38,23 @@ var blockTypeOrder = map[string]int{
 }
 
 var metaArgumentOrder = map[string]int{
-	"count":      0,
-	"for_each":   1,
-	"lifecycle":  998,
-	"depends_on": 999,
+	"count":           0,
+	"for_each":        1,
+	"depends_on":      998,
+	"force_new":       999,
+	"lifecycle":       1000,
+	"triggers_replace": 1001,
 }
 
 func (s *Sorter) SortFile(file *hclwrite.File) {
 	body := file.Body()
 	blocks := body.Blocks()
+	attrs := body.Attributes()
+
+	// Sort top-level attributes if there are any (e.g., for .tfvars files)
+	if len(attrs) > 0 {
+		s.sortBodyAttributes(body)
+	}
 
 	if len(blocks) == 0 {
 		return
@@ -107,15 +115,21 @@ func (s *Sorter) compareBlocks(a, b BlockInfo) bool {
 		}
 	}
 
-	// Special handling for dynamic blocks - sort by block label first, then by for_each expression
+	// Special handling for dynamic blocks - sort by block label first, then by content id/label/name, then by for_each expression
 	if a.Type == "dynamic" && b.Type == "dynamic" {
-		// Dynamic blocks have labels (the resource type they're generating)
-		labelA := s.getDynamicBlockLabel(a.Block)
-		labelB := s.getDynamicBlockLabel(b.Block)
+		// Dynamic blocks have labels (the resource type they're generating) - case insensitive
+		labelA := strings.ToLower(s.getDynamicBlockLabel(a.Block))
+		labelB := strings.ToLower(s.getDynamicBlockLabel(b.Block))
 		if labelA != labelB {
 			return labelA < labelB
 		}
-		// If same label, sort by for_each expression content
+		// If same label, sort by content id/label/name attributes - case insensitive
+		contentKeyA := strings.ToLower(s.getDynamicContentSortKey(a.Block))
+		contentKeyB := strings.ToLower(s.getDynamicContentSortKey(b.Block))
+		if contentKeyA != contentKeyB {
+			return contentKeyA < contentKeyB
+		}
+		// If same content key, sort by for_each expression content
 		forEachA := s.getDynamicForEachContent(a.Block)
 		forEachB := s.getDynamicForEachContent(b.Block)
 		if forEachA != forEachB {
@@ -269,6 +283,39 @@ func (s *Sorter) compareLateAttributes(a, b string) bool {
 		return orderA < orderB
 	}
 	return a < b
+}
+
+func (s *Sorter) sortBodyAttributes(body *hclwrite.Body) {
+	attrs := body.Attributes()
+	if len(attrs) == 0 {
+		return
+	}
+
+	// Build list of attributes with metadata
+	var attrInfos []AttrInfo
+	for name, attr := range attrs {
+		expr := attr.Expr()
+		isMultiLine := s.isMultiLineAttribute(expr)
+
+		attrInfos = append(attrInfos, AttrInfo{
+			Name:        name,
+			Expr:        expr,
+			IsMultiLine: isMultiLine,
+		})
+	}
+
+	// Sort attributes alphabetically
+	sort.Slice(attrInfos, func(i, j int) bool {
+		return attrInfos[i].Name < attrInfos[j].Name
+	})
+
+	// Remove all existing attributes
+	for name := range attrs {
+		body.RemoveAttribute(name)
+	}
+
+	// Add attributes back in sorted order with proper spacing
+	s.writeAttributeGroup(body, attrInfos)
 }
 
 func (s *Sorter) isMultiLineAttribute(expr *hclwrite.Expression) bool {
@@ -868,6 +915,39 @@ func (s *Sorter) getDynamicForEachContent(block *hclwrite.Block) string {
 			content.Write(token.Bytes)
 		}
 		return content.String()
+	}
+
+	return ""
+}
+
+// getDynamicContentSortKey extracts sorting key from dynamic block content (id, label, or name)
+func (s *Sorter) getDynamicContentSortKey(block *hclwrite.Block) string {
+	if block.Type() != "dynamic" {
+		return ""
+	}
+
+	body := block.Body()
+	contentBlocks := body.Blocks()
+
+	// Find the content block
+	for _, contentBlock := range contentBlocks {
+		if contentBlock.Type() == "content" {
+			contentBody := contentBlock.Body()
+			contentAttrs := contentBody.Attributes()
+
+			// Check for sorting attributes in priority order: id, label, name
+			for _, attrName := range []string{"id", "label", "name"} {
+				if attr, exists := contentAttrs[attrName]; exists {
+					// Convert the expression to string for comparison
+					tokens := attr.Expr().BuildTokens(nil)
+					var content strings.Builder
+					for _, token := range tokens {
+						content.Write(token.Bytes)
+					}
+					return content.String()
+				}
+			}
+		}
 	}
 
 	return ""
