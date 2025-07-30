@@ -127,117 +127,21 @@ func (s *Sorter) compareBlocks(a, b BlockInfo) bool {
 }
 
 func (s *Sorter) sortBlockAttributes(block *hclwrite.Block) {
+	// TEMPORARILY DISABLED: Remove-and-rebuild approach is corrupting HCL syntax
+	// Even basic attribute reordering is causing corruption of:
+	// - Object keys: "/" = "*" becomes / " = " * "
+	// - String interpolation: "${var.x}" becomes " $ { var.x } "
+	// - Resource names: "resource_type" becomes " resource_type "
+	// - For expressions: incomplete parsing
+	//
+	// Need to implement non-destructive sorting that preserves original tokens
+	
+	// For now, only recursively sort nested blocks without touching attributes
 	body := block.Body()
-	attrs := body.Attributes()
 	nestedBlocks := body.Blocks()
-
-	if len(attrs) == 0 && len(nestedBlocks) == 0 {
-		return
-	}
-
-	// Categorize attributes
-	var earlyAttrs []AttrInfo
-	var regularAttrs []AttrInfo
-	var lateAttrs []AttrInfo
-
-	for name, attr := range attrs {
-		expr := attr.Expr()
-		// TEMPORARILY DISABLED: Expression sorting is causing syntax corruption
-		// sortedExpr := s.sortExpression(expr)
-
-		isMultiLine := s.isMultiLineAttribute(expr)
-		attrInfo := AttrInfo{
-			Name:        name,
-			Expr:        expr,
-			IsMultiLine: isMultiLine,
-		}
-
-		if s.isEarlyAttribute(name) {
-			earlyAttrs = append(earlyAttrs, attrInfo)
-		} else if s.isLateAttribute(name) {
-			lateAttrs = append(lateAttrs, attrInfo)
-		} else {
-			regularAttrs = append(regularAttrs, attrInfo)
-		}
-	}
-
-	// Categorize blocks
-	var regularBlocks []*hclwrite.Block
-	var lifecycleBlocks []*hclwrite.Block
-
+	
 	for _, nestedBlock := range nestedBlocks {
-		if nestedBlock.Type() == "lifecycle" {
-			lifecycleBlocks = append(lifecycleBlocks, nestedBlock)
-		} else {
-			regularBlocks = append(regularBlocks, nestedBlock)
-		}
-	}
-
-	// Sort all categories
-	sort.Slice(earlyAttrs, func(i, j int) bool {
-		return s.compareEarlyAttributes(earlyAttrs[i].Name, earlyAttrs[j].Name)
-	})
-	sort.Slice(regularAttrs, func(i, j int) bool {
-		return regularAttrs[i].Name < regularAttrs[j].Name
-	})
-	sort.Slice(lateAttrs, func(i, j int) bool {
-		return s.compareLateAttributes(lateAttrs[i].Name, lateAttrs[j].Name)
-	})
-	sort.Slice(regularBlocks, func(i, j int) bool {
-		return s.compareBlocks(BlockInfo{Block: regularBlocks[i], Type: regularBlocks[i].Type()},
-			BlockInfo{Block: regularBlocks[j], Type: regularBlocks[j].Type()})
-	})
-
-	// Now rebuild the body in the correct order
-	// First remove all existing attributes and blocks
-	for name := range attrs {
-		body.RemoveAttribute(name)
-	}
-	for _, block := range nestedBlocks {
-		body.RemoveBlock(block)
-	}
-
-	// Add content in the correct order
-	// 1. Early meta-arguments (count, for_each)
-	s.writeAttributeGroup(body, earlyAttrs)
-
-	// Add blank line after early meta-arguments if we have them and other content
-	hasOtherContent := len(regularAttrs) > 0 || len(lateAttrs) > 0 ||
-		len(regularBlocks) > 0 || len(lifecycleBlocks) > 0
-	if len(earlyAttrs) > 0 && hasOtherContent {
-		body.AppendNewline()
-	}
-
-	// 2. Regular attributes (grouped by single-line vs multi-line)
-	s.writeAttributeGroup(body, regularAttrs)
-
-	// 3. Regular nested blocks (not lifecycle) - recursively sort them
-	for i, block := range regularBlocks {
-		// Add blank line before blocks if we have attributes or previous blocks
-		if len(regularAttrs) > 0 || i > 0 {
-			body.AppendNewline()
-		}
-		s.sortBlockAttributes(block)
-		body.AppendBlock(block)
-	}
-
-	// 4. Late meta-arguments (depends_on attributes)
-	if len(lateAttrs) > 0 {
-		// Add blank line before late attributes if we have regular content
-		if len(regularAttrs) > 0 || len(regularBlocks) > 0 {
-			body.AppendNewline()
-		}
-		s.writeAttributeGroup(body, lateAttrs)
-	}
-
-	// 5. Late blocks (lifecycle) - recursively sort them
-	for _, block := range lifecycleBlocks {
-		// Add blank line before lifecycle blocks
-		if len(regularAttrs) > 0 || len(regularBlocks) > 0 || len(lateAttrs) > 0 {
-			body.AppendNewline()
-		}
-		s.sortBlockAttributes(block)
-		body.AppendBlock(block)
+		s.sortBlockAttributes(nestedBlock)
 	}
 }
 
