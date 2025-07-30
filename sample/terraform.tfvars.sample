@@ -1,0 +1,201 @@
+default = {
+  domain_external = "example.net"
+  domain_internal = "example.org"
+  domain_root     = "example.com"
+  email           = "user@example.com"
+  name            = "Your Name"
+  organisation    = "example"
+  server_config = {
+    enable_cloud_config      = false
+    enable_ssh_password_auth = false
+    locale                   = "en_US"
+    packages                 = ["curl", "sudo"]
+    ssh_port                 = 22
+    timezone                 = "UTC"
+  }
+  user_config = {
+    docker_path = "/var/lib/docker"
+    fullname    = ""
+    groups      = ["docker", "sudo"]
+    paths       = []
+    shell       = "/bin/bash"
+    username    = "root"
+  }
+}
+
+devices = [
+  {
+    name     = "laptop"
+    username = "user"
+  },
+  {
+    name     = "desktop"
+    username = "user"
+  }
+]
+
+dns = {
+  "example.com" = [
+    {
+      content  = "server.example.net"
+      name     = "@"
+      type     = "CNAME"
+      wildcard = true
+    },
+    {
+      content  = "mail.example.net"
+      name     = "mail"
+      type     = "CNAME"
+      wildcard = false
+    }
+  ]
+  "subdomain.example.com" = [
+    {
+      content  = "server.example.net"
+      name     = "@"
+      type     = "CNAME"
+      wildcard = false
+    }
+  ]
+}
+
+routers = [
+  {
+    flags    = ["router"]
+    location = "us"
+    title    = "US Router"
+    networks = [
+      {
+        public_address = "192.168.1.1"
+      }
+    ]
+  }
+]
+
+servers = [
+  {
+    flags  = ["docker", "homepage"]
+    name   = "server1"
+    parent = "us"
+    title  = "Server 1"
+    config = {
+      packages = ["htop", "vim"]
+    }
+    services = [
+      {
+        icon    = "docker"
+        port    = 8080
+        service = "webapp"
+        title   = "Web Application"
+      }
+    ]
+    user = {
+      username = "admin"
+    }
+  }
+]
+
+tags = {
+  environment = "production"
+  project     = "infrastructure"
+}
+
+terraform = {
+  b2 = {
+    application_key    = "your_b2_application_key"
+    application_key_id = "your_b2_application_key_id"
+  }
+  cloudflare = {
+    account_id = "your_cloudflare_account_id"
+    api_key    = "your_cloudflare_api_key"
+  }
+  github = {
+    repository = "Infrastructure"
+    token      = "your_github_token"
+    username   = "your_github_username"
+  }
+  oci = {
+    fingerprint  = "your_oci_fingerprint"
+    location     = "us"
+    private_key  = "base64_encoded_private_key"
+    region       = "us-ashburn-1"
+    tenancy_ocid = "ocid1.tenancy.oc1..your_tenancy_ocid"
+    user_ocid    = "ocid1.user.oc1..your_user_ocid"
+  }
+  onepassword = {
+    service_account_token = "your_1password_service_account_token"
+    vault                 = "your_vault_name"
+  }
+  proxmox = {
+    server1 = {
+      host     = "proxmox.example.com"
+      password = "your_proxmox_password"
+      port     = 8006
+      username = "root"
+    }
+  }
+  resend = {
+    api_key = "your_resend_api_key"
+    url     = "https://api.resend.com"
+  }
+  sftpgo = {
+    home_directory_base = "/srv/sftpgo/data"
+    host                = "sftpgo.example.com"
+    password            = "your_sftpgo_password"
+    username            = "admin"
+    webdav_url          = "https://sftpgo.example.com/webdav"
+  }
+  tailscale = {
+    oauth_client_id     = "your_tailscale_oauth_client_id"
+    oauth_client_secret = "your_tailscale_oauth_client_secret"
+    organization        = "your_tailscale_organization"
+  }
+}
+
+vms = [
+  {
+    location = "cloud"
+    name     = "vm1"
+    title    = "Virtual Machine 1"
+    config = {
+      cpus   = 2
+      memory = 4
+    }
+  }
+]
+
+vms_oci = [
+  {
+    location = "cloud"
+    name     = "oci-vm1"
+    title    = "OCI Virtual Machine 1"
+    config = {
+      boot_disk_size = 50
+      cpus           = 2
+      memory         = 8
+      shape          = "VM.Standard.E2.1.Micro"
+    }
+  }
+]
+
+vms_proxmox = [
+  {
+    name   = "proxmox-vm1"
+    parent = "server1"
+    title  = "Proxmox VM 1"
+    config = {
+      boot_disk_image_url = "https://cloud-images.ubuntu.com/releases/22.04/release/ubuntu-22.04-server-cloudimg-amd64.img"
+      boot_disk_size      = 20
+      cpus                = 2
+      enable_cloud_config = true
+      memory              = 4
+      operating_system    = "l26"
+    }
+    networks = [
+      {
+        firewall = true
+        vlan_id  = null
+      }
+    ]
+  }
+]
