@@ -72,7 +72,14 @@ Returns exit code 0 if sorted, 1 if any files need sorting.
    - `count` and `for_each` appear first
    - `lifecycle` and `depends_on` appear last
 
-4. **Nested blocks** are recursively sorted using the same rules
+4. **Nested blocks** are recursively sorted using the same rules:
+   - `validation` blocks are sorted by their `error_message` content
+   - `dynamic` blocks are sorted by label name, then by `for_each` expression content
+
+5. **Spacing** is automatically handled:
+   - Single-line attributes are grouped together
+   - Multi-line attributes get blank lines before them
+   - Blank lines are added before nested blocks
 
 ## Development
 
@@ -123,6 +130,15 @@ provider "github" {
   token = var.github_token
 }
 ```
+
+## Future Enhancements
+
+Planned improvements include:
+
+- **Object literal sorting**: Sort keys within HCL object expressions and `jsonencode()` calls
+- **Array element sorting**: Sort elements in simple array literals
+- **Custom sort orders**: Configuration file for project-specific sorting rules
+- **Semantic grouping**: Option to group related resources together
 
 ## License
 

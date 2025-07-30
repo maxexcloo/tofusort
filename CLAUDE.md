@@ -59,6 +59,9 @@
 3. **Within blocks**: Sort attributes alphabetically, except meta-arguments
 4. **Meta-argument order**: count/for_each → other attributes → lifecycle → depends_on
 5. **Nested blocks**: Apply same rules recursively
+   - **validation blocks**: Sort by error_message content alphabetically
+   - **dynamic blocks**: Sort by label name, then by for_each expression content
+6. **Spacing**: Single-line attributes grouped, multi-line attributes with blank lines
 
 ## Environment Setup
 
@@ -148,6 +151,8 @@ go fmt ./...
 - **Format conflicts**: Warn when tofu fmt would conflict with sorting
 
 ## Future Considerations
+- **Object literal sorting**: Sort keys within HCL object expressions and jsonencode() calls
+- **Array element sorting**: Sort elements in simple array literals
 - **Custom sort orders**: Configuration file for project-specific rules
 - **Semantic grouping**: Option to group related resources
 - **Import organization**: Sort import blocks by source

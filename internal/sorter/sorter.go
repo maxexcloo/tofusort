@@ -98,6 +98,31 @@ func (s *Sorter) compareBlocks(a, b BlockInfo) bool {
 		}
 	}
 
+	// Special handling for validation blocks - sort by error_message
+	if a.Type == "validation" && b.Type == "validation" {
+		errorMsgA := s.getValidationErrorMessage(a.Block)
+		errorMsgB := s.getValidationErrorMessage(b.Block)
+		if errorMsgA != errorMsgB {
+			return errorMsgA < errorMsgB
+		}
+	}
+
+	// Special handling for dynamic blocks - sort by block label first, then by for_each expression
+	if a.Type == "dynamic" && b.Type == "dynamic" {
+		// Dynamic blocks have labels (the resource type they're generating)
+		labelA := s.getDynamicBlockLabel(a.Block)
+		labelB := s.getDynamicBlockLabel(b.Block)
+		if labelA != labelB {
+			return labelA < labelB
+		}
+		// If same label, sort by for_each expression content
+		forEachA := s.getDynamicForEachContent(a.Block)
+		forEachB := s.getDynamicForEachContent(b.Block)
+		if forEachA != forEachB {
+			return forEachA < forEachB
+		}
+	}
+
 	return a.Name < b.Name
 }
 
@@ -116,10 +141,14 @@ func (s *Sorter) sortBlockAttributes(block *hclwrite.Block) {
 	var lateAttrs []AttrInfo
 
 	for name, attr := range attrs {
-		isMultiLine := s.isMultiLineAttribute(attr.Expr())
+		expr := attr.Expr()
+		// Sort the expression if it contains objects
+		sortedExpr := s.sortExpression(expr)
+		
+		isMultiLine := s.isMultiLineAttribute(sortedExpr)
 		attrInfo := AttrInfo{
 			Name:        name,
-			Expr:        attr.Expr(),
+			Expr:        sortedExpr,
 			IsMultiLine: isMultiLine,
 		}
 
@@ -155,7 +184,8 @@ func (s *Sorter) sortBlockAttributes(block *hclwrite.Block) {
 		return s.compareLateAttributes(lateAttrs[i].Name, lateAttrs[j].Name)
 	})
 	sort.Slice(regularBlocks, func(i, j int) bool {
-		return regularBlocks[i].Type() < regularBlocks[j].Type()
+		return s.compareBlocks(BlockInfo{Block: regularBlocks[i], Type: regularBlocks[i].Type()}, 
+		                       BlockInfo{Block: regularBlocks[j], Type: regularBlocks[j].Type()})
 	})
 
 	// Now rebuild the body in the correct order
@@ -279,4 +309,74 @@ func (s *Sorter) writeAttributeGroup(body *hclwrite.Body, attrs []AttrInfo) {
 		body.AppendNewline()
 		body.SetAttributeRaw(attrInfo.Name, attrInfo.Expr.BuildTokens(nil))
 	}
+}
+
+// sortExpression attempts to sort object expressions (both HCL objects and jsonencode calls)
+func (s *Sorter) sortExpression(expr *hclwrite.Expression) *hclwrite.Expression {
+	// For now, disable object sorting due to complexity of preserving formatting
+	// This is a stretch goal that needs more careful implementation
+	return expr
+}
+
+// getValidationErrorMessage extracts the error_message from a validation block
+func (s *Sorter) getValidationErrorMessage(block *hclwrite.Block) string {
+	if block.Type() != "validation" {
+		return ""
+	}
+	
+	body := block.Body()
+	attrs := body.Attributes()
+	
+	if errorMsgAttr, exists := attrs["error_message"]; exists {
+		// Extract the string value from the expression
+		tokens := errorMsgAttr.Expr().BuildTokens(nil)
+		for _, token := range tokens {
+			if token.Type == hclsyntax.TokenQuotedLit {
+				// Remove quotes and return the content
+				content := string(token.Bytes)
+				if len(content) >= 2 && content[0] == '"' && content[len(content)-1] == '"' {
+					return content[1 : len(content)-1]
+				}
+				return content
+			}
+		}
+	}
+	
+	return ""
+}
+
+// getDynamicBlockLabel extracts the label from a dynamic block
+func (s *Sorter) getDynamicBlockLabel(block *hclwrite.Block) string {
+	if block.Type() != "dynamic" {
+		return ""
+	}
+	
+	labels := block.Labels()
+	if len(labels) > 0 {
+		return labels[0]
+	}
+	
+	return ""
+}
+
+// getDynamicForEachContent extracts the for_each expression content from a dynamic block
+func (s *Sorter) getDynamicForEachContent(block *hclwrite.Block) string {
+	if block.Type() != "dynamic" {
+		return ""
+	}
+	
+	body := block.Body()
+	attrs := body.Attributes()
+	
+	if forEachAttr, exists := attrs["for_each"]; exists {
+		// Convert the expression to string for comparison
+		tokens := forEachAttr.Expr().BuildTokens(nil)
+		var content strings.Builder
+		for _, token := range tokens {
+			content.Write(token.Bytes)
+		}
+		return content.String()
+	}
+	
+	return ""
 }
