@@ -42,15 +42,15 @@ mise run check       # All validation (fmt + lint + test)
 
 ## Development Guidelines
 
-### Documentation Structure
-- **ARCHITECTURE.md**: Technical design and implementation details
-- **CLAUDE.md**: Development standards and project guidelines
-- **README.md**: Tool overview and usage guide
-
 ### Contribution Standards
 - **Code Changes**: Follow sorting rules and maintain test coverage
 - **Documentation**: Keep all docs synchronized and cross-referenced
 - **Feature Changes**: Update README.md and ARCHITECTURE.md when adding features
+
+### Documentation Structure
+- **ARCHITECTURE.md**: Technical design and implementation details
+- **CLAUDE.md**: Development standards and project guidelines
+- **README.md**: Tool overview and usage guide
 
 ## Command Interface Standards
 - **Clear output**: Provide informative messages about what was processed
@@ -61,9 +61,9 @@ mise run check       # All validation (fmt + lint + test)
 ## Development Workflow Standards
 
 ### Environment Management
-- Use **mise** for consistent development environments
-- Pin tool versions in `.mise.toml`
 - Define common tasks as mise scripts
+- Pin tool versions in `.mise.toml`
+- Use **mise** for consistent development environments
 
 ### Required Development Tasks
 - **build**: Create production binary
@@ -80,11 +80,11 @@ mise run check       # All validation (fmt + lint + test)
 - **User-friendly output**: Clear explanations for common issues
 
 ## Project Structure
+- **.mise.toml**: mise configuration for tool versioning
 - **cmd/tofusort/**: CLI layer with main, sort, and check commands
+- **go.mod**: Go module dependencies
 - **internal/parser/**: HCL parsing and formatting logic
 - **internal/sorter/**: Core sorting engine with comprehensive test suite
-- **go.mod**: Go module dependencies
-- **.mise.toml**: mise configuration for tool versioning
 - **samples/**: Sample Terraform files for testing
 
 ## README Guidelines
@@ -98,15 +98,6 @@ mise run check       # All validation (fmt + lint + test)
 - **Backend**: Go for native HCL v2 parser integration
 - **CLI**: Cobra framework for command-line interface
 - **Testing**: Go unit tests and integration tests
-
-## Git Workflow
-```bash
-# After every change
-mise run check && git add . && git commit -m "type: description"
-
-# Always commit after verified working changes
-# Keep commits small and focused
-```
 
 ---
 

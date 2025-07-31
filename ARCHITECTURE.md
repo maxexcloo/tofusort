@@ -7,20 +7,20 @@ Command-line tool for sorting Terraform/OpenTofu configuration files alphabetica
 ## Core Components
 
 ### CLI Layer
-- **Entry Point**: Cobra-based command-line interface
 - **Commands**: Main, sort, and check commands
+- **Entry Point**: Cobra-based command-line interface
 - **File Discovery**: Single file, directory, and recursive processing
 - **Output**: Dry-run mode and formatted output
 
 ### Parser Layer
-- **HCL Integration**: Native `hclwrite` package for AST manipulation
-- **File Support**: `.tf` and `.tfvars` files (HCL and JSON syntax)
 - **Comment Preservation**: Maintains all comments and expressions
+- **File Support**: `.tf` and `.tfvars` files (HCL and JSON syntax)
 - **Format Cleanup**: Removes excessive blank lines, standardizes formatting
+- **HCL Integration**: Native `hclwrite` package for AST manipulation
 
 ### Sorter Engine
-- **Block Sorting**: Terraform → provider → variable → locals → data → resource → module → output
 - **Attribute Sorting**: Alphabetical with meta-argument priorities
+- **Block Sorting**: Terraform → provider → variable → locals → data → resource → module → output
 - **Nested Sorting**: Recursive sorting of all nested structures
 - **Special Cases**: Validation and dynamic blocks with custom logic
 
@@ -49,22 +49,22 @@ var metaArgumentOrder = map[string]int{
 ```
 
 ### Special Block Handling
-- **Validation Blocks**: Sorted by `error_message` content
 - **Dynamic Blocks**: Sorted by label name, then `for_each` expression
 - **Multi-line Attributes**: Proper spacing with blank lines
+- **Validation Blocks**: Sorted by `error_message` content
 
 ## Technology Stack
 
 ### Core
-- **Language**: Go with native HCL v2 parser
 - **CLI**: Cobra framework for command-line interface
+- **Language**: Go with native HCL v2 parser
 - **Parser**: `github.com/hashicorp/hcl/v2` for AST manipulation
 - **Testing**: Go unit tests and integration tests
 
 ### Dependencies
-- **HCL Parser**: Native integration with HashiCorp HCL v2
 - **CLI Framework**: Cobra for robust command-line handling
 - **File Operations**: Standard Go library for file system access
+- **HCL Parser**: Native integration with HashiCorp HCL v2
 
 ---
 
