@@ -2,7 +2,7 @@
 
 ## Overview
 
-Command-line tool for sorting Terraform/OpenTofu configuration files alphabetically using native HCL v2 parser integration.
+Command-line tool for sorting OpenTofu/Terraform configuration files alphabetically using native HCL v2 parser integration.
 
 ## Core Components
 
@@ -20,7 +20,7 @@ Command-line tool for sorting Terraform/OpenTofu configuration files alphabetica
 
 ### Sorter Engine
 - **Attribute Sorting**: Alphabetical with meta-argument priorities
-- **Block Sorting**: Terraform → provider → variable → locals → data → resource → module → output
+- **Block Sorting**: terraform → provider → variable → locals → data → resource → module → output
 - **Nested Sorting**: Recursive sorting of all nested structures
 - **Special Cases**: Validation and dynamic blocks with custom logic
 

@@ -1,15 +1,15 @@
 # CLAUDE.md - Development Guide
 
 ## Project Overview
-**Purpose**: Tool to sort Terraform/OpenTofu configuration files alphabetically
+**Purpose**: Tool to sort OpenTofu/Terraform configuration files alphabetically
 **Status**: Active
 **Language**: Go (for native HCL v2 parser integration)
 
 ## Code Standards
 
 ### Organization
-- **Config/Data**: Alphabetical and recursive (imports, dependencies, object keys)
-- **Documentation**: Sort alphabetically and recursively when it makes logical sense
+- **Config/Data**: Alphabetical and recursive (imports, dependencies, object keys, mise tasks)
+- **Documentation**: Sort sections, lists, and references alphabetically when logical
 - **Files**: Alphabetical in documentation and directories
 - **Functions**: Group by purpose, alphabetical within groups
 - **Variables**: Alphabetical within scope
@@ -18,7 +18,7 @@
 - **Comments**: Minimal - only for complex business logic
 - **Documentation**: Update ARCHITECTURE.md and README.md with every feature change
 - **Error handling**: Always handle parser errors gracefully
-- **Formatting**: Run `go fmt` before commits
+- **Formatting**: Run `mise run fmt` before commits
 - **KISS principle**: Keep it simple - prefer readable code over clever code
 - **Naming**: Go conventions (camelCase for functions, PascalCase for types)
 - **Testing**: Unit tests for all sorting logic
@@ -85,7 +85,7 @@ mise run check       # All validation (fmt + lint + test)
 - **go.mod**: Go module dependencies
 - **internal/parser/**: HCL parsing and formatting logic
 - **internal/sorter/**: Core sorting engine with comprehensive test suite
-- **samples/**: Sample Terraform files for testing
+- **samples/**: Sample OpenTofu/Terraform files for testing
 
 ## README Guidelines
 - **Badges**: Include relevant status badges (license, status, language, docker)

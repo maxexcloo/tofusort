@@ -19,8 +19,8 @@ var (
 
 var sortCmd = &cobra.Command{
 	Use:   "sort [file or directory]",
-	Short: "Sort Terraform/OpenTofu files alphabetically",
-	Long: `Sort Terraform/OpenTofu configuration files alphabetically.
+	Short: "Sort OpenTofu/Terraform files alphabetically",
+	Long: `Sort OpenTofu/Terraform configuration files alphabetically.
 Sorts blocks by type, then by name within type, and attributes within blocks.`,
 	Args: cobra.MinimumNArgs(1),
 	RunE: runSort,

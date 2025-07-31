@@ -18,6 +18,10 @@ depends = ["fmt", "lint", "test"]
 description = "Clean build artifacts"
 run = "rm -f tofusort"
 
+[tasks.dev]
+description = "Development validation cycle"
+depends = ["check"]
+
 [tasks.fmt]
 description = "Format Go code"
 run = "go fmt ./..."

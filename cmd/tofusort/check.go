@@ -13,8 +13,8 @@ import (
 
 var checkCmd = &cobra.Command{
 	Use:   "check [file or directory]",
-	Short: "Check if Terraform/OpenTofu files are sorted",
-	Long: `Check if Terraform/OpenTofu configuration files are already sorted.
+	Short: "Check if OpenTofu/Terraform files are sorted",
+	Long: `Check if OpenTofu/Terraform configuration files are already sorted.
 Returns exit code 0 if all files are sorted, 1 if any files need sorting.
 Useful for CI/CD pipelines to enforce sorted configuration files.`,
 	Args: cobra.MinimumNArgs(1),

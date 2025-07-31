@@ -7,7 +7,7 @@ import (
 // TestRealWorldProvidersFile tests sorting a complex providers.tf based on sample_1
 func TestRealWorldProvidersFile(t *testing.T) {
 	input := `provider "tfe" {
-  # Uses TF_TOKEN environment variable or Terraform Cloud credentials
+  # Uses TF_TOKEN environment variable or OpenTofu/Terraform Cloud credentials
 }
 
 provider "b2" {
@@ -138,7 +138,7 @@ provider "tailscale" {
   tailnet             = var.terraform.tailscale.organization
 }
 provider "tfe" {
-  # Uses TF_TOKEN environment variable or Terraform Cloud credentials
+  # Uses TF_TOKEN environment variable or OpenTofu/Terraform Cloud credentials
 }
 `
 

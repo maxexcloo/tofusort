@@ -2,9 +2,17 @@
 
 [![License](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 [![Status](https://img.shields.io/badge/status-active-success)](https://img.shields.io/badge/status-active-success)
+[![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](Dockerfile)
 [![Go](https://img.shields.io/badge/go-blue.svg)](https://go.dev/)
 
-Tool to sort Terraform/OpenTofu configuration files alphabetically using native HCL v2 parser integration.
+Tool to sort OpenTofu/Terraform configuration files alphabetically using native HCL v2 parser integration.
+
+## Quick Start
+
+```bash
+mise install
+mise run build
+```
 
 ## Features
 
@@ -22,18 +30,7 @@ Tool to sort Terraform/OpenTofu configuration files alphabetically using native 
 - **Multi-line attributes**: Proper spacing with blank lines
 - **Validation blocks**: Sorted by `error_message` content
 
-## Quick Start
-
-Get up and running in under 5 minutes:
-
-```bash
-git clone <repository-url>
-cd tofusort
-mise install
-mise run build
-```
-
-Visit `./tofusort --help` and start sorting your Terraform files.
+Visit `./tofusort --help` and start sorting your OpenTofu/Terraform files.
 
 ## Installation
 
@@ -86,7 +83,7 @@ mise run build
 # Run all checks
 mise run check
 
-# Test development build
+# Development validation cycle
 mise run dev
 
 # Format and lint
@@ -117,4 +114,4 @@ tofusort applies consistent sorting rules:
 
 ---
 
-*A tool for maintaining consistent Terraform configuration organization.*
+*A tool for maintaining consistent OpenTofu/Terraform configuration organization.*
