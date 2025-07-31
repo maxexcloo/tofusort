@@ -1,120 +1,38 @@
-# Architecture Documentation
+# ARCHITECTURE.md - Technical Design
 
 ## Overview
 
-Tofusort is a command-line tool designed to sort Terraform/OpenTofu configuration files alphabetically. The architecture follows Go best practices with a clean separation of concerns between CLI handling, parsing, and sorting logic.
+Command-line tool for sorting Terraform/OpenTofu configuration files alphabetically using native HCL v2 parser integration.
 
-## System Architecture
+## Core Components
 
-```mermaid
-graph TD
-    A[CLI Entry Point] --> B[Command Parser]
-    B --> C[File Discovery]
-    C --> D[HCL Parser]
-    D --> E[Sorter Engine]
-    E --> F[File Writer]
-    F --> G[Output]
-    
-    subgraph "Core Components"
-        D
-        E
-    end
-    
-    subgraph "CLI Layer"
-        A
-        B
-        C
-        F
-        G
-    end
-    
-    H[Sample Files] --> C
-    I[Configuration] --> E
-```
+### CLI Layer
+- **Entry Point**: Cobra-based command-line interface
+- **Commands**: Main, sort, and check commands
+- **File Discovery**: Single file, directory, and recursive processing
+- **Output**: Dry-run mode and formatted output
 
-## Component Overview
+### Parser Layer
+- **HCL Integration**: Native `hclwrite` package for AST manipulation
+- **File Support**: `.tf` and `.tfvars` files (HCL and JSON syntax)
+- **Comment Preservation**: Maintains all comments and expressions
+- **Format Cleanup**: Removes excessive blank lines, standardizes formatting
 
-### 1. CLI Layer (`cmd/tofusort/`)
-
-**Purpose**: Handle command-line interface, file operations, and user interaction.
-
-**Components**:
-- `check.go`: Check command for CI/CD validation
-- `main.go`: Application entry point and root command setup
-- `sort.go`: Sort command implementation with file discovery and processing
-
-**Responsibilities**:
-- Coordinate parsing and sorting operations
-- Discover files (single file, directory, recursive)
-- Handle dry-run mode and output formatting
-- Manage error reporting and exit codes
-- Parse command-line arguments using Cobra
-
-### 2. Parser Layer (`internal/parser/`)
-
-**Purpose**: Handle HCL file parsing and formatting integration.
-
-**Components**:
-- `parser.go`: HCL parsing and formatting logic
-
-**Responsibilities**:
-- Clean up excessive blank lines
-- Handle both `.tf` and `.tfvars` files
-- Integrate with `tofu fmt` for consistent formatting
-- Parse HCL files using `github.com/hashicorp/hcl/v2/hclwrite`
-- Preserve comments and expressions
-
-**Key Features**:
-- AST-based parsing for reliable handling
-- Comment preservation
-- Expression integrity maintenance
-- Format cleanup and standardization
-
-### 3. Sorter Engine (`internal/sorter/`)
-
-**Purpose**: Core sorting logic for Terraform constructs.
-
-**Components**:
-- `sorter.go`: Main sorting implementation
-- `sorter_test.go`: Comprehensive test suite
-
-**Responsibilities**:
-- Handle meta-arguments (count, for_each, lifecycle, depends_on)
-- Manage spacing and formatting rules
-- Sort attributes within blocks
-- Sort nested blocks recursively
-- Sort top-level blocks by type and name
-
-**Advanced Features**:
-- **Attribute Categorization**: Early, regular, and late attributes
-- **Dynamic Block Sorting**: Sort by label name, then `for_each` expression
-- **Spacing Management**: Single-line vs multi-line attribute handling
-- **Validation Block Sorting**: Sort by `error_message` content
+### Sorter Engine
+- **Block Sorting**: Terraform → provider → variable → locals → data → resource → module → output
+- **Attribute Sorting**: Alphabetical with meta-argument priorities
+- **Nested Sorting**: Recursive sorting of all nested structures
+- **Special Cases**: Validation and dynamic blocks with custom logic
 
 ## Data Flow
 
-```mermaid
-sequenceDiagram
-    participant CLI as CLI Command
-    participant Parser as HCL Parser
-    participant Sorter as Sorter Engine
-    participant Writer as File Writer
-    
-    CLI->>Parser: Parse HCL file
-    Parser->>Parser: Build AST
-    Parser->>Sorter: Pass file AST
-    Sorter->>Sorter: Sort top-level blocks
-    Sorter->>Sorter: Sort block attributes
-    Sorter->>Sorter: Sort nested blocks
-    Sorter->>Parser: Return sorted AST
-    Parser->>Parser: Format and cleanup
-    Parser->>Writer: Write formatted content
-    Writer->>CLI: Return status
-```
+1. **Processing**: CLI command → File discovery → HCL parse → Sort → Format → Write output
+2. **Sorting**: Parse AST → Sort top-level blocks → Sort attributes → Sort nested blocks → Format → Return
+3. **Output**: Sorted AST → Cleanup formatting → Generate content → Write to file/stdout
 
-## Sorting Algorithm
+## Key Algorithms
 
-### Block Type Priority System
+### Block Type Priority
 ```go
 var blockTypeOrder = map[string]int{
     "terraform": 0, "provider": 1, "variable": 2, "locals": 3,
@@ -122,7 +40,7 @@ var blockTypeOrder = map[string]int{
 }
 ```
 
-### Meta-Argument Priority System
+### Meta-Argument Priority
 ```go
 var metaArgumentOrder = map[string]int{
     "count": 0, "for_each": 1,
@@ -130,61 +48,24 @@ var metaArgumentOrder = map[string]int{
 }
 ```
 
-### Special Block Sorting Logic
+### Special Block Handling
+- **Validation Blocks**: Sorted by `error_message` content
+- **Dynamic Blocks**: Sorted by label name, then `for_each` expression
+- **Multi-line Attributes**: Proper spacing with blank lines
 
-**Validation Blocks**:
-```go
-func (s *Sorter) getValidationErrorMessage(block *hclwrite.Block) string {
-    // Extracts error_message content for comparison
-}
-```
+## Technology Stack
 
-**Dynamic Blocks**:
-```go
-func (s *Sorter) getDynamicBlockLabel(block *hclwrite.Block) string {
-    // Extracts label for primary sort
-}
-func (s *Sorter) getDynamicForEachContent(block *hclwrite.Block) string {
-    // Extracts for_each expression for secondary sort  
-}
-```
+### Core
+- **Language**: Go with native HCL v2 parser
+- **CLI**: Cobra framework for command-line interface
+- **Parser**: `github.com/hashicorp/hcl/v2` for AST manipulation
+- **Testing**: Go unit tests and integration tests
 
-## Key Design Decisions
+### Dependencies
+- **HCL Parser**: Native integration with HashiCorp HCL v2
+- **CLI Framework**: Cobra for robust command-line handling
+- **File Operations**: Standard Go library for file system access
 
-### 1. AST-Based Parsing
-- Uses `hclwrite` package for reliable AST manipulation
-- Preserves all formatting, comments, and expressions
-- Enables precise sorting without breaking Terraform syntax
+---
 
-### 2. Recursive Sorting
-- Sorts nested blocks using the same rules as top-level blocks
-- Maintains consistency across all nesting levels
-- Special handling for validation and dynamic blocks
-
-### 3. Spacing Management
-- Groups single-line attributes together
-- Adds blank lines before multi-line attributes and nested blocks
-- Preserves original formatting intentions while enforcing consistency
-
-### 4. Error Recovery
-- Continues processing other files if one fails
-- Provides detailed error reporting with file and line context
-- Graceful handling of parsing errors
-
-## Performance Considerations
-
-- **Memory Efficiency**: Processes files individually to minimize memory usage
-- **Concurrent Processing**: Ready for parallel file processing (future enhancement)
-- **AST Reuse**: Minimal AST manipulation for better performance
-
-## Dependencies
-
-- `github.com/hashicorp/hcl/v2`: HCL parsing and manipulation
-- `github.com/spf13/cobra`: CLI framework
-- Standard Go library for file operations and string manipulation
-
-## Testing Strategy
-
-- **Integration Tests**: Sample files validate end-to-end functionality
-- **Regression Tests**: Ensure changes don't break existing functionality
-- **Unit Tests**: Comprehensive coverage for sorting logic
+*Technical architecture documentation for the tofusort project.*

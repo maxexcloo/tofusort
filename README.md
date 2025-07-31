@@ -1,8 +1,10 @@
 # tofusort
 
-**Purpose**: Tool to sort Terraform/OpenTofu configuration files alphabetically
-**Status**: Active
-**Language**: Go (for native HCL v2 parser integration)
+[![License](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
+[![Status](https://img.shields.io/badge/status-active-success)](https://img.shields.io/badge/status-active-success)
+[![Go](https://img.shields.io/badge/go-blue.svg)](https://go.dev/)
+
+Tool to sort Terraform/OpenTofu configuration files alphabetically using native HCL v2 parser integration.
 
 ## Features
 
@@ -20,13 +22,41 @@
 - **Multi-line attributes**: Proper spacing with blank lines
 - **Validation blocks**: Sorted by `error_message` content
 
-## Installation
+## Quick Start
+
+Get up and running in under 5 minutes:
 
 ```bash
 git clone <repository-url>
 cd tofusort
 mise install
 mise run build
+```
+
+Visit `./tofusort --help` and start sorting your Terraform files.
+
+## Installation
+
+### Local Development
+
+```bash
+# Clone the repository
+git clone <repository-url>
+cd tofusort
+
+# Install dependencies
+mise install
+
+# Build the binary
+mise run build
+```
+
+### Docker
+
+```bash
+# Using Docker (when available)
+docker build -t tofusort .
+docker run -v $(pwd):/workspace -w /workspace tofusort sort main.tf
 ```
 
 ## Usage
@@ -62,6 +92,12 @@ mise run dev
 # Format and lint
 mise run fmt
 mise run lint
+```
+
+### Environment Variables
+
+```bash
+DEBUG=false    # Enable debug logging (default: false)
 ```
 
 ## How It Works
@@ -106,27 +142,20 @@ provider "github" {
 }
 ```
 
+## Contributing
+
+1. **Build** and test: `mise run check`
+2. **Commit** changes: `git commit -m "feat: description"`
+3. **Create** a feature branch: `git checkout -b feature-name`
+4. **Follow** the code standards in `CLAUDE.md`
+5. **Fork** the repository
+6. **Open** a Pull Request
+7. **Push** to branch: `git push origin feature-name`
+
 ## Documentation
 
 - **[ARCHITECTURE.md](ARCHITECTURE.md)**: Technical design, components, and algorithms
 - **[CLAUDE.md](CLAUDE.md)**: Development standards and contribution guidelines
-
-## Development
-
-Quick start for contributors:
-
-```bash
-# Setup environment
-mise install
-
-# Run all checks
-mise run check
-
-# Development workflow
-mise run dev
-```
-
-> **🛠️ Complete development guide**: See [CLAUDE.md](CLAUDE.md#development-workflow-standards) for detailed workflow
 
 ---
 
