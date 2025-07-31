@@ -42,6 +42,9 @@ func (p *Parser) cleanupBlankLines(content []byte) []byte {
 	blockStartRe := regexp.MustCompile(`\{\n\n+(\s+)`)
 	text = blockStartRe.ReplaceAllString(text, "{\n$1")
 
+	// Remove blank lines at the start of file
+	text = regexp.MustCompile(`^\n+`).ReplaceAllString(text, "")
+
 	// Ensure file ends with exactly one newline
 	text = regexp.MustCompile(`\n*$`).ReplaceAllString(text, "\n")
 

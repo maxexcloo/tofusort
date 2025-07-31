@@ -115,8 +115,32 @@ func (s *Sorter) SortFile(file *hclwrite.File) {
 	// Add sorted blocks
 	for i, blockInfo := range blockInfos {
 		s.sortBlockAttributes(blockInfo.Block)
+		
+		// Add blank line before certain block types for grouping
+		if i > 0 {
+			currentOrder, currentExists := blockTypeOrder[blockInfo.Type]
+			prevOrder, prevExists := blockTypeOrder[blockInfos[i-1].Type]
+			
+			// Add blank line in specific cases only
+			if currentExists && prevExists {
+				// Add blank line when transitioning from early group (0-2) to later group (3+)
+				if prevOrder <= 2 && currentOrder >= 3 {
+					body.AppendNewline()
+				}
+				// Add blank line between all blocks in the later group (3+)
+				if prevOrder >= 3 && currentOrder >= 3 {
+					body.AppendNewline()
+				}
+				// NO blank lines between terraform/provider/variable (both <= 2) - do nothing
+			} else if !currentExists || !prevExists {
+				// Add blank line for unknown block types
+				body.AppendNewline()
+			}
+		}
+		
 		body.AppendBlock(blockInfo.Block)
-
+		
+		// Always add a newline after each block
 		if i < len(blockInfos)-1 {
 			body.AppendNewline()
 		}
@@ -184,7 +208,8 @@ func (s *Sorter) sortBlockAttributes(block *hclwrite.Block) {
 
 	// Categorize attributes
 	var earlyAttrs []AttrInfo
-	var regularAttrs []AttrInfo
+	var singleLineAttrs []AttrInfo
+	var multiLineAttrs []AttrInfo
 	var lateAttrs []AttrInfo
 
 	for name, attr := range attrs {
@@ -203,8 +228,10 @@ func (s *Sorter) sortBlockAttributes(block *hclwrite.Block) {
 			earlyAttrs = append(earlyAttrs, attrInfo)
 		} else if s.isLateAttribute(name) {
 			lateAttrs = append(lateAttrs, attrInfo)
+		} else if isMultiLine {
+			multiLineAttrs = append(multiLineAttrs, attrInfo)
 		} else {
-			regularAttrs = append(regularAttrs, attrInfo)
+			singleLineAttrs = append(singleLineAttrs, attrInfo)
 		}
 	}
 
@@ -224,8 +251,11 @@ func (s *Sorter) sortBlockAttributes(block *hclwrite.Block) {
 	sort.Slice(earlyAttrs, func(i, j int) bool {
 		return s.compareEarlyAttributes(earlyAttrs[i].Name, earlyAttrs[j].Name)
 	})
-	sort.Slice(regularAttrs, func(i, j int) bool {
-		return regularAttrs[i].Name < regularAttrs[j].Name
+	sort.Slice(singleLineAttrs, func(i, j int) bool {
+		return singleLineAttrs[i].Name < singleLineAttrs[j].Name
+	})
+	sort.Slice(multiLineAttrs, func(i, j int) bool {
+		return multiLineAttrs[i].Name < multiLineAttrs[j].Name
 	})
 	sort.Slice(lateAttrs, func(i, j int) bool {
 		return s.compareLateAttributes(lateAttrs[i].Name, lateAttrs[j].Name)
@@ -249,38 +279,47 @@ func (s *Sorter) sortBlockAttributes(block *hclwrite.Block) {
 	s.writeAttributeGroup(body, earlyAttrs)
 
 	// Add blank line after early meta-arguments if we have them and other content
-	hasOtherContent := len(regularAttrs) > 0 || len(lateAttrs) > 0 ||
+	hasOtherContent := len(singleLineAttrs) > 0 || len(multiLineAttrs) > 0 || len(lateAttrs) > 0 ||
 		len(regularBlocks) > 0 || len(lifecycleBlocks) > 0
 	if len(earlyAttrs) > 0 && hasOtherContent {
 		body.AppendNewline()
 	}
 
-	// 2. Regular attributes (grouped by single-line vs multi-line)
-	s.writeAttributeGroup(body, regularAttrs)
+	// 2. Single-line regular attributes
+	s.writeAttributeGroup(body, singleLineAttrs)
 
 	// 3. Regular nested blocks (not lifecycle) - recursively sort them
 	for i, block := range regularBlocks {
 		// Add blank line before blocks if we have attributes or previous blocks
-		if len(regularAttrs) > 0 || i > 0 {
+		if len(singleLineAttrs) > 0 || i > 0 {
 			body.AppendNewline()
 		}
 		s.sortBlockAttributes(block)
 		body.AppendBlock(block)
 	}
 
-	// 4. Late meta-arguments (depends_on attributes)
+	// 4. Multi-line regular attributes
+	if len(multiLineAttrs) > 0 {
+		// Add blank line before multi-line attributes if we have regular content
+		if len(singleLineAttrs) > 0 || len(regularBlocks) > 0 {
+			body.AppendNewline()
+		}
+		s.writeAttributeGroup(body, multiLineAttrs)
+	}
+
+	// 5. Late meta-arguments (depends_on attributes)
 	if len(lateAttrs) > 0 {
 		// Add blank line before late attributes if we have regular content
-		if len(regularAttrs) > 0 || len(regularBlocks) > 0 {
+		if len(singleLineAttrs) > 0 || len(regularBlocks) > 0 || len(multiLineAttrs) > 0 {
 			body.AppendNewline()
 		}
 		s.writeAttributeGroup(body, lateAttrs)
 	}
 
-	// 5. Late blocks (lifecycle) - recursively sort them
+	// 6. Late blocks (lifecycle) - recursively sort them
 	for _, block := range lifecycleBlocks {
 		// Add blank line before lifecycle blocks
-		if len(regularAttrs) > 0 || len(regularBlocks) > 0 || len(lateAttrs) > 0 {
+		if len(singleLineAttrs) > 0 || len(regularBlocks) > 0 || len(multiLineAttrs) > 0 || len(lateAttrs) > 0 {
 			body.AppendNewline()
 		}
 		s.sortBlockAttributes(block)
@@ -346,8 +385,10 @@ func (s *Sorter) sortBodyAttributes(body *hclwrite.Body) {
 		return attrInfos[i].Name < attrInfos[j].Name
 	})
 
-	// For .tfvars files, clear the body entirely and rebuild clean
-	body.Clear()
+	// Remove existing attributes first
+	for name := range attrs {
+		body.RemoveAttribute(name)
+	}
 
 	// Add attributes back in sorted order with proper spacing
 	s.writeAttributeGroup(body, attrInfos)
@@ -422,49 +463,40 @@ func (s *Sorter) sortExpression(expr *hclwrite.Expression) *hclwrite.Expression 
 
 // isSimpleObjectExpression uses HCL AST parsing to determine if an expression is a simple object
 func (s *Sorter) isSimpleObjectExpression(tokens hclwrite.Tokens) bool {
-	// TEMPORARILY DISABLED: Object sorting is causing corruption with complex expressions
-	// TODO: Re-implement with safer token reconstruction
-	return false
+	if len(tokens) < 3 {
+		return false
+	}
 
-	/*
-		// Convert tokens back to source code
-		var src strings.Builder
-		for _, token := range tokens {
-			src.Write(token.Bytes)
-		}
-		sourceText := src.String()
+	// Convert tokens back to source code
+	var src strings.Builder
+	for _, token := range tokens {
+		src.Write(token.Bytes)
+	}
+	sourceText := src.String()
 
-		// Check for complex expressions that are prone to corruption in token reconstruction
-		// These include: quoted keys, complex expressions, for loops, function calls, interpolations
-		complexPatterns := []string{
-			`"[^"]*"\s*[=:]`,           // Quoted keys like "/" = "*"
-			`\$\{`,                     // String interpolations like ${each.value}
-			`\bfor\b.*\bin\b`,          // For loop expressions
-			`\bone\(`,                  // Function calls like one()
-			`\bsort\(`,                 // Function calls like sort()
-			`\bdata\.`,                 // Data source references
-			`\bvar\.`,                  // Variable references in complex contexts
-			`\blocal\.`,                // Local references in complex contexts
-			`\beach\.`,                 // Each references in complex contexts
-			`\bif\b.*\?.*:`,           // Ternary conditionals
-			`\[\s*[^]]*\s*:\s*[^]]*\s*\]`, // Array/map comprehensions
-		}
+	// Check for complex expressions that should never be sorted
+	if strings.Contains(sourceText, "for ") ||
+		strings.Contains(sourceText, "${") ||
+		strings.Contains(sourceText, "=>") {
+		return false
+	}
 
-		for _, pattern := range complexPatterns {
-			if matched, _ := regexp.MatchString(pattern, sourceText); matched {
-				return false
-			}
-		}
+	// Check if it's an object() type definition - these should be sorted
+	if strings.HasPrefix(strings.TrimSpace(sourceText), "object(") {
+		return true
+	}
 
-		// Parse the expression using HCL's parser
-		expr, diags := hclsyntax.ParseExpression([]byte(sourceText), "", hcl.Pos{Line: 1, Column: 1})
-		if diags.HasErrors() {
-			return false
-		}
+	// Check if it's inside a function call like merge() - these should not be sorted
+	// This is a simple heuristic - if we see function names, don't sort
+	if strings.Contains(sourceText, "merge(") ||
+		strings.Contains(sourceText, "concat(") ||
+		strings.Contains(sourceText, "flatten(") {
+		return false
+	}
 
-		// Check if it's a simple object constructor or object literal
-		return s.isSimpleExpression(expr)
-	*/
+	// Only allow simple object literals like { key = value, ... }
+	return strings.HasPrefix(strings.TrimSpace(sourceText), "{") && 
+		   strings.HasSuffix(strings.TrimSpace(sourceText), "}")
 }
 
 // isSimpleExpression recursively checks if an HCL expression contains only simple, literal values
