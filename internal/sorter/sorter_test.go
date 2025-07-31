@@ -108,9 +108,11 @@ output "instance_id" {
 	expected := `terraform {
   required_version = ">= 1.0"
 }
+
 provider "aws" {
   region = var.region
 }
+
 variable "region" {
   default = "us-west-2"
 }
@@ -295,10 +297,10 @@ func TestSingleLineArrayGrouping(t *testing.T) {
 }`
 
 	expected := `resource "aws_instance" "example" {
-  ami                  = "ami-12345"
-  availability_zones   = ["us-west-2a"]
-  instance_type        = "t2.micro"
-  security_groups      = ["default", "web"]
+  ami                = "ami-12345"
+  availability_zones = ["us-west-2a"]
+  instance_type      = "t2.micro"
+  security_groups    = ["default", "web"]
 
   root_block_device {
     volume_size = 20
@@ -428,8 +430,8 @@ func TestComplexExpressionPreservation(t *testing.T) {
   tags = merge(
     var.common_tags,
     {
-      Application = "web"
       Environment = "prod"
+      Application = "web"
     }
   )
 }
