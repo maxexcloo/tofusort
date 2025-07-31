@@ -1,5 +1,5 @@
 [env]
-GOPATH = "{{env.PWD}}/go"
+GOPATH = "{{env.PWD}}/.go"
 
 [tools]
 go = "latest"
@@ -10,31 +10,26 @@ goreleaser = "latest"
 description = "Build the tofusort binary"
 run = "go build -o tofusort ./cmd/tofusort"
 
-[tasks.test]
-description = "Run all tests"
-run = "go test -v ./..."
-
-[tasks.lint]
-description = "Run linter"
-run = "golangci-lint run"
-
-[tasks.fmt]
-description = "Format Go code"
-run = "go fmt ./..."
+[tasks.check]
+description = "Run all checks (format, lint, test)"
+depends = ["fmt", "lint", "test"]
 
 [tasks.clean]
 description = "Clean build artifacts"
 run = "rm -f tofusort"
 
-[tasks.check]
-description = "Run all checks (format, lint, test)"
-depends = ["fmt", "lint", "test"]
+[tasks.fmt]
+description = "Format Go code"
+run = "go fmt ./..."
 
 [tasks.install]
 description = "Install tofusort binary to GOPATH/bin"
 run = "go install ./cmd/tofusort"
 
-[tasks.dev]
-description = "Development build and test on sample files"
-depends = ["build"]
-run = "./tofusort check sample/"
+[tasks.lint]
+description = "Run linter"
+run = "golangci-lint run"
+
+[tasks.test]
+description = "Run all tests"
+run = "go test -v ./..."

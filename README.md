@@ -1,13 +1,13 @@
 # tofusort
 
-**Purpose**: Tool to sort Terraform/OpenTofu configuration files alphabetically  
-**Status**: Active  
-**Language**: Go
+**Purpose**: Tool to sort Terraform/OpenTofu configuration files alphabetically
+**Status**: Active
+**Language**: Go (for native HCL v2 parser integration)
 
 ## Features
 
-- **Block sorting**: Alphabetical by type (terraform → provider → variable → locals → data → resource → module → output)
 - **Attribute sorting**: Alphabetical within blocks, with meta-argument ordering
+- **Block sorting**: Alphabetical by type (terraform → provider → variable → locals → data → resource → module → output)
 - **Comment preservation**: Maintains all comments in their relative positions
 - **File support**: Handles `.tf` and `.tfvars` files (HCL and JSON syntax)
 - **Nested sorting**: Recursive alphabetical sorting of all nested structures
@@ -53,24 +53,24 @@ tofusort sort -r ./modules
 # Build binary
 mise run build
 
-# Format and lint
-mise run fmt
-mise run lint
-
 # Run all checks
 mise run check
 
 # Test development build
 mise run dev
+
+# Format and lint
+mise run fmt
+mise run lint
 ```
 
 ## How It Works
 
 Tofusort applies consistent sorting rules:
-- **Block types**: terraform → provider → variable → locals → data → resource → module → output
 - **Attributes**: Alphabetical with meta-argument priorities
-- **Special handling**: Validation and dynamic blocks have custom sort logic
+- **Block types**: terraform → provider → variable → locals → data → resource → module → output
 - **Spacing**: Automatic formatting with proper blank lines
+- **Special handling**: Validation and dynamic blocks have custom sort logic
 
 > **📋 Complete sorting rules**: See [ARCHITECTURE.md](ARCHITECTURE.md#sorting-algorithm) for detailed specifications
 

@@ -1,8 +1,6 @@
 package sorter
 
 import (
-	"fmt"
-	"regexp"
 	"sort"
 	"strings"
 
@@ -41,11 +39,11 @@ var blockTypeOrder = map[string]int{
 }
 
 var metaArgumentOrder = map[string]int{
-	"count":           0,
-	"for_each":        1,
-	"depends_on":      998,
-	"force_new":       999,
-	"lifecycle":       1000,
+	"count":            0,
+	"for_each":         1,
+	"depends_on":       998,
+	"force_new":        999,
+	"lifecycle":        1000,
 	"triggers_replace": 1001,
 }
 
@@ -330,10 +328,10 @@ func (s *Sorter) sortBodyAttributes(body *hclwrite.Body) {
 	var attrInfos []AttrInfo
 	for name, attr := range attrs {
 		expr := attr.Expr()
-		
+
 		// Sort the expression content if it's an object or similar
 		sortedExpr := s.sortExpression(expr)
-		
+
 		isMultiLine := s.isMultiLineAttribute(sortedExpr)
 
 		attrInfos = append(attrInfos, AttrInfo{
@@ -400,7 +398,7 @@ func (s *Sorter) writeAttributeGroup(body *hclwrite.Body, attrs []AttrInfo) {
 // sortExpression attempts to sort object expressions using token-based approach
 func (s *Sorter) sortExpression(expr *hclwrite.Expression) *hclwrite.Expression {
 	tokens := expr.BuildTokens(nil)
-	
+
 	// Parse the expression using HCL's AST parser to understand its structure
 	if s.isSimpleObjectExpression(tokens) {
 		// Only sort if it's a simple object with literal values
@@ -409,7 +407,7 @@ func (s *Sorter) sortExpression(expr *hclwrite.Expression) *hclwrite.Expression 
 			return s.tokensToExpression(sortedTokens)
 		}
 	}
-	
+
 	// Also check if this is an array that might contain objects
 	if len(tokens) > 0 && tokens[0].Type == hclsyntax.TokenOBrack {
 		// This is an array, process its contents
@@ -418,35 +416,55 @@ func (s *Sorter) sortExpression(expr *hclwrite.Expression) *hclwrite.Expression 
 			return s.tokensToExpression(sortedTokens)
 		}
 	}
-	
+
 	return expr
 }
 
 // isSimpleObjectExpression uses HCL AST parsing to determine if an expression is a simple object
 func (s *Sorter) isSimpleObjectExpression(tokens hclwrite.Tokens) bool {
-	// Convert tokens back to source code
-	var src strings.Builder
-	for _, token := range tokens {
-		src.Write(token.Bytes)
-	}
-	sourceText := src.String()
-	
-	// Check for quoted string keys - these are prone to corruption in token reconstruction
-	// Objects with quoted keys (like "/" = "*") should not be sorted to prevent corruption
-	// Use regex to detect quoted keys (quoted strings followed by = or :)
-	quotedKeyPattern := `"[^"]*"\s*[=:]`
-	if matched, _ := regexp.MatchString(quotedKeyPattern, sourceText); matched {
-		return false
-	}
-	
-	// Parse the expression using HCL's parser
-	expr, diags := hclsyntax.ParseExpression([]byte(sourceText), "", hcl.Pos{Line: 1, Column: 1})
-	if diags.HasErrors() {
-		return false
-	}
-	
-	// Check if it's a simple object constructor or object literal
-	return s.isSimpleExpression(expr)
+	// TEMPORARILY DISABLED: Object sorting is causing corruption with complex expressions
+	// TODO: Re-implement with safer token reconstruction
+	return false
+
+	/*
+		// Convert tokens back to source code
+		var src strings.Builder
+		for _, token := range tokens {
+			src.Write(token.Bytes)
+		}
+		sourceText := src.String()
+
+		// Check for complex expressions that are prone to corruption in token reconstruction
+		// These include: quoted keys, complex expressions, for loops, function calls, interpolations
+		complexPatterns := []string{
+			`"[^"]*"\s*[=:]`,           // Quoted keys like "/" = "*"
+			`\$\{`,                     // String interpolations like ${each.value}
+			`\bfor\b.*\bin\b`,          // For loop expressions
+			`\bone\(`,                  // Function calls like one()
+			`\bsort\(`,                 // Function calls like sort()
+			`\bdata\.`,                 // Data source references
+			`\bvar\.`,                  // Variable references in complex contexts
+			`\blocal\.`,                // Local references in complex contexts
+			`\beach\.`,                 // Each references in complex contexts
+			`\bif\b.*\?.*:`,           // Ternary conditionals
+			`\[\s*[^]]*\s*:\s*[^]]*\s*\]`, // Array/map comprehensions
+		}
+
+		for _, pattern := range complexPatterns {
+			if matched, _ := regexp.MatchString(pattern, sourceText); matched {
+				return false
+			}
+		}
+
+		// Parse the expression using HCL's parser
+		expr, diags := hclsyntax.ParseExpression([]byte(sourceText), "", hcl.Pos{Line: 1, Column: 1})
+		if diags.HasErrors() {
+			return false
+		}
+
+		// Check if it's a simple object constructor or object literal
+		return s.isSimpleExpression(expr)
+	*/
 }
 
 // isSimpleExpression recursively checks if an HCL expression contains only simple, literal values
@@ -465,7 +483,7 @@ func (s *Sorter) isSimpleExpression(expr hclsyntax.Expression) bool {
 			}
 		}
 		return true
-		
+
 	case *hclsyntax.TupleConsExpr:
 		// Array constructor [item1, item2, ...]
 		for _, elem := range e.Exprs {
@@ -474,24 +492,24 @@ func (s *Sorter) isSimpleExpression(expr hclsyntax.Expression) bool {
 			}
 		}
 		return true
-		
+
 	case *hclsyntax.LiteralValueExpr:
 		// Literal values (strings, numbers, booleans, null)
 		return true
-		
+
 	case *hclsyntax.ScopeTraversalExpr:
 		// Variable references and identifiers are simple (like "string", "number", "bool" in type definitions)
 		return true
-		
+
 	case *hclsyntax.ObjectConsKeyExpr:
 		// Object keys (identifiers or literals used as keys)
 		return true
-		
+
 	case *hclsyntax.TemplateExpr:
 		// Template expressions like quoted strings
 		// Only allow simple literal templates (no interpolation)
 		return e.IsStringLiteral()
-		
+
 	case *hclsyntax.FunctionCallExpr:
 		// Only allow specific HCL type constructor functions
 		allowedTypeFunctions := map[string]bool{
@@ -501,11 +519,11 @@ func (s *Sorter) isSimpleExpression(expr hclsyntax.Expression) bool {
 			"map":    true,
 			"tuple":  true,
 		}
-		
+
 		if !allowedTypeFunctions[e.Name] {
 			return false
 		}
-		
+
 		// Check arguments are simple
 		for _, arg := range e.Args {
 			if !s.isSimpleExpression(arg) {
@@ -513,7 +531,7 @@ func (s *Sorter) isSimpleExpression(expr hclsyntax.Expression) bool {
 			}
 		}
 		return true
-		
+
 	default:
 		// Any other expression type (for loops, conditionals, etc.) is not simple
 		return false
@@ -525,23 +543,23 @@ func (s *Sorter) isObjectCall(tokens hclwrite.Tokens) bool {
 	if len(tokens) < 4 {
 		return false
 	}
-	
+
 	// Skip whitespace and comments
 	i := 0
 	for i < len(tokens) && (tokens[i].Type == hclsyntax.TokenNewline || tokens[i].Type == hclsyntax.TokenComment) {
 		i++
 	}
-	
+
 	if i >= len(tokens) || tokens[i].Type != hclsyntax.TokenIdent || string(tokens[i].Bytes) != "object" {
 		return false
 	}
 	i++
-	
+
 	// Skip whitespace
 	for i < len(tokens) && (tokens[i].Type == hclsyntax.TokenNewline || tokens[i].Type == hclsyntax.TokenComment) {
 		i++
 	}
-	
+
 	return i < len(tokens) && tokens[i].Type == hclsyntax.TokenOParen
 }
 
@@ -553,61 +571,61 @@ func (s *Sorter) isSafeObjectCall(tokens hclwrite.Tokens) bool {
 		source.Write(token.Bytes)
 	}
 	text := source.String()
-	
+
 	// Reject any complex expressions that could be corrupted
 	unsafePatterns := []string{
-		"${",         // String interpolation
-		"for ",       // For expressions
-		" for ",      // For expressions (with space)
-		"if ",        // Conditional expressions
-		" if ",       // Conditional expressions (with space)
+		"${",            // String interpolation
+		"for ",          // For expressions
+		" for ",         // For expressions (with space)
+		"if ",           // Conditional expressions
+		" if ",          // Conditional expressions (with space)
 		"templatefile(", // Function calls
-		"merge(",     // Function calls
-		"try(",       // Function calls
-		"length(",    // Function calls
-		"split(",     // Function calls
-		"join(",      // Function calls
-		"contains(",  // Function calls
-		"keys(",      // Function calls
-		"values(",    // Function calls
-		"concat(",    // Function calls
-		"flatten(",   // Function calls
-		"distinct(",  // Function calls
-		"reverse(",   // Function calls
-		"sort(",      // Function calls
-		"zipmap(",    // Function calls
-		"toset(",     // Function calls
-		"tolist(",    // Function calls
-		"tomap(",     // Function calls
-		"jsondecode(", // Function calls
-		"jsonencode(", // Function calls
-		"yamldecode(", // Function calls
-		"yamlencode(", // Function calls
+		"merge(",        // Function calls
+		"try(",          // Function calls
+		"length(",       // Function calls
+		"split(",        // Function calls
+		"join(",         // Function calls
+		"contains(",     // Function calls
+		"keys(",         // Function calls
+		"values(",       // Function calls
+		"concat(",       // Function calls
+		"flatten(",      // Function calls
+		"distinct(",     // Function calls
+		"reverse(",      // Function calls
+		"sort(",         // Function calls
+		"zipmap(",       // Function calls
+		"toset(",        // Function calls
+		"tolist(",       // Function calls
+		"tomap(",        // Function calls
+		"jsondecode(",   // Function calls
+		"jsonencode(",   // Function calls
+		"yamldecode(",   // Function calls
+		"yamlencode(",   // Function calls
 		"base64decode(", // Function calls
 		"base64encode(", // Function calls
-		"replace(",   // Function calls
-		"can(",       // Function calls
-		"upper(",     // Function calls
-		"lower(",     // Function calls
-		"title(",     // Function calls
-		"substr(",    // Function calls
-		"regex(",     // Function calls
-		"cidrhost(",  // Function calls
-		"cidrnetmask(", // Function calls
-		"endswith(",  // Function calls
-		"startswith(", // Function calls
+		"replace(",      // Function calls
+		"can(",          // Function calls
+		"upper(",        // Function calls
+		"lower(",        // Function calls
+		"title(",        // Function calls
+		"substr(",       // Function calls
+		"regex(",        // Function calls
+		"cidrhost(",     // Function calls
+		"cidrnetmask(",  // Function calls
+		"endswith(",     // Function calls
+		"startswith(",   // Function calls
 	}
-	
+
 	for _, pattern := range unsafePatterns {
 		if strings.Contains(text, pattern) {
 			return false
 		}
 	}
-	
+
 	// Only allow simple object() calls with basic types
 	// Must contain only: object({ key = type, ... })
 	// where type is: string, number, bool, any, list(...), map(...), set(...), or nested object(...)
-	
+
 	// Check for any function calls other than object()
 	// Count all opening parentheses
 	objectCount := strings.Count(text, "object(")
@@ -615,109 +633,109 @@ func (s *Sorter) isSafeObjectCall(tokens hclwrite.Tokens) bool {
 	mapCount := strings.Count(text, "map(")
 	setCount := strings.Count(text, "set(")
 	parenthesesCount := strings.Count(text, "(")
-	
+
 	// Allow only object(), list(), map(), set() calls (HCL type constructors)
 	allowedCallsCount := objectCount + listCount + mapCount + setCount
-	
-	// If there are more opening parentheses than allowed type constructor calls, 
+
+	// If there are more opening parentheses than allowed type constructor calls,
 	// there are other function calls - reject for safety
 	if parenthesesCount > allowedCallsCount {
 		return false
 	}
-	
+
 	return true
 }
 
 // isSafeObjectLiteral validates that an object literal is safe to sort
 func (s *Sorter) isSafeObjectLiteral(tokens hclwrite.Tokens) bool {
-	// Convert tokens to text for analysis  
+	// Convert tokens to text for analysis
 	var source strings.Builder
 	for _, token := range tokens {
 		source.Write(token.Bytes)
 	}
 	text := source.String()
-	
+
 	// Use the same safety patterns as object() calls
 	unsafePatterns := []string{
-		"${",         // String interpolation
-		"for ",       // For expressions
-		" for ",      // For expressions (with space)
-		"if ",        // Conditional expressions
-		" if ",       // Conditional expressions (with space)
+		"${",            // String interpolation
+		"for ",          // For expressions
+		" for ",         // For expressions (with space)
+		"if ",           // Conditional expressions
+		" if ",          // Conditional expressions (with space)
 		"templatefile(", // Function calls
-		"merge(",     // Function calls
-		"try(",       // Function calls
-		"length(",    // Function calls
-		"split(",     // Function calls
-		"join(",      // Function calls
-		"contains(",  // Function calls
-		"keys(",      // Function calls
-		"values(",    // Function calls
-		"concat(",    // Function calls
-		"flatten(",   // Function calls
-		"distinct(",  // Function calls
-		"reverse(",   // Function calls
-		"sort(",      // Function calls
-		"zipmap(",    // Function calls
-		"toset(",     // Function calls
-		"tolist(",    // Function calls
-		"tomap(",     // Function calls
-		"jsondecode(", // Function calls
-		"jsonencode(", // Function calls
-		"yamldecode(", // Function calls
-		"yamlencode(", // Function calls
+		"merge(",        // Function calls
+		"try(",          // Function calls
+		"length(",       // Function calls
+		"split(",        // Function calls
+		"join(",         // Function calls
+		"contains(",     // Function calls
+		"keys(",         // Function calls
+		"values(",       // Function calls
+		"concat(",       // Function calls
+		"flatten(",      // Function calls
+		"distinct(",     // Function calls
+		"reverse(",      // Function calls
+		"sort(",         // Function calls
+		"zipmap(",       // Function calls
+		"toset(",        // Function calls
+		"tolist(",       // Function calls
+		"tomap(",        // Function calls
+		"jsondecode(",   // Function calls
+		"jsonencode(",   // Function calls
+		"yamldecode(",   // Function calls
+		"yamlencode(",   // Function calls
 		"base64decode(", // Function calls
 		"base64encode(", // Function calls
-		"replace(",   // Function calls
-		"can(",       // Function calls
-		"upper(",     // Function calls
-		"lower(",     // Function calls
-		"title(",     // Function calls
-		"substr(",    // Function calls
-		"regex(",     // Function calls
-		"cidrhost(",  // Function calls
-		"cidrnetmask(", // Function calls
-		"endswith(",  // Function calls
-		"startswith(", // Function calls
+		"replace(",      // Function calls
+		"can(",          // Function calls
+		"upper(",        // Function calls
+		"lower(",        // Function calls
+		"title(",        // Function calls
+		"substr(",       // Function calls
+		"regex(",        // Function calls
+		"cidrhost(",     // Function calls
+		"cidrnetmask(",  // Function calls
+		"endswith(",     // Function calls
+		"startswith(",   // Function calls
 	}
-	
+
 	for _, pattern := range unsafePatterns {
 		if strings.Contains(text, pattern) {
 			return false
 		}
 	}
-	
+
 	// Only allow very simple object literals
 	// Must be just key-value pairs with basic types (strings, numbers, booleans, arrays, nested objects)
-	
+
 	// Reject any parentheses (function calls, expressions)
 	if strings.Contains(text, "(") {
 		return false
 	}
-	
+
 	// Reject any equals arrows (for expressions use =>)
 	if strings.Contains(text, "=>") {
 		return false
 	}
-	
-	// Reject any complex operators  
+
+	// Reject any complex operators
 	complexOperators := []string{
 		" : ", // Object key syntax in for expressions (with spaces)
 		": ",  // Object key syntax in for expressions (space after)
-		" :",  // Object key syntax in for expressions (space before)  
+		" :",  // Object key syntax in for expressions (space before)
 		"=>",  // For expressions arrow (already checked above, but double-check)
 		"...", // Spread operator
 		"?",   // Conditional operator
 		"||",  // Logical operators
 		"&&",  // Logical operators
 	}
-	
+
 	for _, op := range complexOperators {
 		if strings.Contains(text, op) {
 			return false
 		}
 	}
-	
+
 	return true
 }
 
@@ -731,11 +749,11 @@ func (s *Sorter) sortObjectCallTokens(tokens hclwrite.Tokens) hclwrite.Tokens {
 			break
 		}
 	}
-	
+
 	if parenIdx == -1 {
 		return nil
 	}
-	
+
 	// Find the matching closing parenthesis
 	parenLevel := 0
 	closeParenIdx := -1
@@ -750,27 +768,27 @@ func (s *Sorter) sortObjectCallTokens(tokens hclwrite.Tokens) hclwrite.Tokens {
 			}
 		}
 	}
-	
+
 	if closeParenIdx == -1 {
 		return nil
 	}
-	
+
 	// Extract the content between parentheses
 	innerTokens := tokens[parenIdx+1 : closeParenIdx]
-	
+
 	// Check if the inner content is an object literal
 	if s.isObjectLiteral(innerTokens) {
 		sortedInner := s.sortObjectLiteral(innerTokens)
 		if sortedInner != nil {
 			// Rebuild the object() call with sorted content
 			var result hclwrite.Tokens
-			result = append(result, tokens[:parenIdx+1]...)  // "object("
-			result = append(result, sortedInner...)          // sorted object content
+			result = append(result, tokens[:parenIdx+1]...)    // "object("
+			result = append(result, sortedInner...)            // sorted object content
 			result = append(result, tokens[closeParenIdx:]...) // ")"
 			return result
 		}
 	}
-	
+
 	return nil
 }
 
@@ -779,13 +797,13 @@ func (s *Sorter) tokensToExpression(tokens hclwrite.Tokens) *hclwrite.Expression
 	// Create a temporary body and set an attribute with the tokens
 	body := hclwrite.NewEmptyFile().Body()
 	body.SetAttributeRaw("temp", tokens)
-	
+
 	// Extract the expression from the temporary attribute
 	attrs := body.Attributes()
 	if tempAttr, exists := attrs["temp"]; exists {
 		return tempAttr.Expr()
 	}
-	
+
 	return nil
 }
 
@@ -794,22 +812,22 @@ func (s *Sorter) isJsonEncodeCall(tokens hclwrite.Tokens) bool {
 	if len(tokens) < 4 {
 		return false
 	}
-	
+
 	// Check first token is identifier "jsonencode"
 	if tokens[0].Type != hclsyntax.TokenIdent || string(tokens[0].Bytes) != "jsonencode" {
 		return false
 	}
-	
+
 	// Check second token is opening parenthesis
 	if tokens[1].Type != hclsyntax.TokenOParen {
 		return false
 	}
-	
+
 	// Check last token is closing parenthesis
 	if tokens[len(tokens)-1].Type != hclsyntax.TokenCParen {
 		return false
 	}
-	
+
 	return true
 }
 
@@ -818,12 +836,12 @@ func (s *Sorter) sortJsonEncode(tokens hclwrite.Tokens) hclwrite.Tokens {
 	// Extract content between jsonencode( and )
 	contentStart := 2
 	contentEnd := len(tokens) - 1
-	
+
 	// Keep the jsonencode( prefix
 	result := make(hclwrite.Tokens, 0, len(tokens))
 	result = append(result, tokens[0]) // jsonencode
 	result = append(result, tokens[1]) // (
-	
+
 	// Extract and sort the content
 	contentTokens := tokens[contentStart:contentEnd]
 	if sortedContent := s.sortObjectLiteral(contentTokens); sortedContent != nil {
@@ -832,10 +850,10 @@ func (s *Sorter) sortJsonEncode(tokens hclwrite.Tokens) hclwrite.Tokens {
 		// If we can't sort, keep original
 		result = append(result, contentTokens...)
 	}
-	
+
 	// Add closing parenthesis
 	result = append(result, tokens[len(tokens)-1]) // )
-	
+
 	return result
 }
 
@@ -844,7 +862,7 @@ func (s *Sorter) isObjectLiteral(tokens hclwrite.Tokens) bool {
 	if len(tokens) < 2 {
 		return false
 	}
-	
+
 	// Find first non-whitespace token
 	for _, token := range tokens {
 		if token.Type == hclsyntax.TokenNewline || token.Type == hclsyntax.TokenComment {
@@ -852,7 +870,7 @@ func (s *Sorter) isObjectLiteral(tokens hclwrite.Tokens) bool {
 		}
 		return token.Type == hclsyntax.TokenOBrace
 	}
-	
+
 	return false
 }
 
@@ -866,21 +884,21 @@ func (s *Sorter) sortObjectLiteral(tokens hclwrite.Tokens) hclwrite.Tokens {
 			break
 		}
 	}
-	
+
 	if openBraceIdx == -1 {
 		return nil
 	}
-	
+
 	// Parse the object entries
 	entries := s.parseObjectEntries(tokens, openBraceIdx)
 	if len(entries) == 0 {
 		return nil
 	}
-	
+
 	// Separate single-line and multi-line entries
 	var singleLineEntries []ObjectEntry
 	var multiLineEntries []ObjectEntry
-	
+
 	for _, entry := range entries {
 		if s.isMultiLineObjectEntry(entry) {
 			multiLineEntries = append(multiLineEntries, entry)
@@ -888,7 +906,7 @@ func (s *Sorter) sortObjectLiteral(tokens hclwrite.Tokens) hclwrite.Tokens {
 			singleLineEntries = append(singleLineEntries, entry)
 		}
 	}
-	
+
 	// Sort both groups alphabetically by key
 	sort.Slice(singleLineEntries, func(i, j int) bool {
 		return singleLineEntries[i].Key < singleLineEntries[j].Key
@@ -896,17 +914,17 @@ func (s *Sorter) sortObjectLiteral(tokens hclwrite.Tokens) hclwrite.Tokens {
 	sort.Slice(multiLineEntries, func(i, j int) bool {
 		return multiLineEntries[i].Key < multiLineEntries[j].Key
 	})
-	
+
 	// Combine: single-line first, then multi-line
 	sortedEntries := append(singleLineEntries, multiLineEntries...)
-	
+
 	// Rebuild the tokens
 	return s.rebuildObjectTokens(tokens, sortedEntries, openBraceIdx, len(singleLineEntries) > 0 && len(multiLineEntries) > 0)
 }
 
 type ObjectEntry struct {
-	Key     string
-	Tokens  hclwrite.Tokens
+	Key      string
+	Tokens   hclwrite.Tokens
 	StartIdx int
 	EndIdx   int
 }
@@ -914,20 +932,20 @@ type ObjectEntry struct {
 // parseObjectEntries parses key-value pairs from object tokens
 func (s *Sorter) parseObjectEntries(tokens hclwrite.Tokens, startIdx int) []ObjectEntry {
 	var entries []ObjectEntry
-	
+
 	i := startIdx + 1 // Skip opening brace
 	braceLevel := 1
-	
+
 	for i < len(tokens) && braceLevel > 0 {
 		// Skip whitespace and comments
 		for i < len(tokens) && (tokens[i].Type == hclsyntax.TokenNewline || tokens[i].Type == hclsyntax.TokenComment) {
 			i++
 		}
-		
+
 		if i >= len(tokens) {
 			break
 		}
-		
+
 		// Track brace level
 		if tokens[i].Type == hclsyntax.TokenOBrace {
 			braceLevel++
@@ -937,7 +955,7 @@ func (s *Sorter) parseObjectEntries(tokens hclwrite.Tokens, startIdx int) []Obje
 				break
 			}
 		}
-		
+
 		// Look for key tokens at top level
 		if braceLevel == 1 && (tokens[i].Type == hclsyntax.TokenIdent || tokens[i].Type == hclsyntax.TokenQuotedLit) {
 			entry := s.parseObjectEntry(tokens, i)
@@ -951,7 +969,7 @@ func (s *Sorter) parseObjectEntries(tokens hclwrite.Tokens, startIdx int) []Obje
 			i++
 		}
 	}
-	
+
 	return entries
 }
 
@@ -960,14 +978,14 @@ func (s *Sorter) parseObjectEntry(tokens hclwrite.Tokens, startIdx int) *ObjectE
 	if startIdx >= len(tokens) {
 		return nil
 	}
-	
+
 	// Extract key
 	keyToken := tokens[startIdx]
 	key := s.extractKeyName(keyToken)
 	if key == "" {
 		return nil
 	}
-	
+
 	// Find the equals sign or colon
 	equalIdx := -1
 	for i := startIdx + 1; i < len(tokens); i++ {
@@ -980,26 +998,26 @@ func (s *Sorter) parseObjectEntry(tokens hclwrite.Tokens, startIdx int) *ObjectE
 			break
 		}
 	}
-	
+
 	if equalIdx == -1 {
 		return nil
 	}
-	
+
 	// Find the end of the value
 	endIdx := s.findValueEnd(tokens, equalIdx+1)
 	if endIdx == -1 {
 		return nil
 	}
-	
+
 	// Extract all tokens for this entry
 	entryTokens := make(hclwrite.Tokens, 0, endIdx-startIdx)
 	for i := startIdx; i < endIdx; i++ {
 		entryTokens = append(entryTokens, tokens[i])
 	}
-	
+
 	// Recursively sort nested objects within this entry
 	entryTokens = s.recursiveSortTokens(entryTokens)
-	
+
 	return &ObjectEntry{
 		Key:      key,
 		Tokens:   entryTokens,
@@ -1013,26 +1031,26 @@ func (s *Sorter) recursiveSortTokens(tokens hclwrite.Tokens) hclwrite.Tokens {
 	if len(tokens) == 0 {
 		return tokens
 	}
-	
+
 	// Look for nested objects and arrays and sort them
 	result := make(hclwrite.Tokens, 0, len(tokens))
 	i := 0
-	
+
 	for i < len(tokens) {
 		if tokens[i].Type == hclsyntax.TokenOBrace {
 			// Found a nested object, extract and sort it
 			objEnd := s.findMatchingBrace(tokens, i)
 			if objEnd > i {
 				// Extract the object tokens
-				objTokens := tokens[i:objEnd+1]
-				
+				objTokens := tokens[i : objEnd+1]
+
 				// Try to sort this nested object
 				if sortedObj := s.sortObjectLiteral(objTokens); sortedObj != nil {
 					result = append(result, sortedObj...)
 				} else {
 					result = append(result, objTokens...)
 				}
-				
+
 				i = objEnd + 1
 			} else {
 				result = append(result, tokens[i])
@@ -1043,7 +1061,7 @@ func (s *Sorter) recursiveSortTokens(tokens hclwrite.Tokens) hclwrite.Tokens {
 			arrEnd := s.findMatchingBracket(tokens, i)
 			if arrEnd > i {
 				// Process array contents
-				arrayTokens := s.sortArrayContents(tokens[i:arrEnd+1])
+				arrayTokens := s.sortArrayContents(tokens[i : arrEnd+1])
 				result = append(result, arrayTokens...)
 				i = arrEnd + 1
 			} else {
@@ -1055,7 +1073,7 @@ func (s *Sorter) recursiveSortTokens(tokens hclwrite.Tokens) hclwrite.Tokens {
 			i++
 		}
 	}
-	
+
 	return result
 }
 
@@ -1064,7 +1082,7 @@ func (s *Sorter) findMatchingBrace(tokens hclwrite.Tokens, openIdx int) int {
 	if openIdx >= len(tokens) || tokens[openIdx].Type != hclsyntax.TokenOBrace {
 		return -1
 	}
-	
+
 	braceLevel := 1
 	for i := openIdx + 1; i < len(tokens); i++ {
 		if tokens[i].Type == hclsyntax.TokenOBrace {
@@ -1076,7 +1094,7 @@ func (s *Sorter) findMatchingBrace(tokens hclwrite.Tokens, openIdx int) int {
 			}
 		}
 	}
-	
+
 	return -1
 }
 
@@ -1085,7 +1103,7 @@ func (s *Sorter) findMatchingBracket(tokens hclwrite.Tokens, openIdx int) int {
 	if openIdx >= len(tokens) || tokens[openIdx].Type != hclsyntax.TokenOBrack {
 		return -1
 	}
-	
+
 	bracketLevel := 1
 	for i := openIdx + 1; i < len(tokens); i++ {
 		if tokens[i].Type == hclsyntax.TokenOBrack {
@@ -1097,7 +1115,7 @@ func (s *Sorter) findMatchingBracket(tokens hclwrite.Tokens, openIdx int) int {
 			}
 		}
 	}
-	
+
 	return -1
 }
 
@@ -1106,15 +1124,15 @@ func (s *Sorter) sortArrayContents(tokens hclwrite.Tokens) hclwrite.Tokens {
 	if len(tokens) < 3 { // Need at least [ content ]
 		return tokens
 	}
-	
+
 	result := make(hclwrite.Tokens, 0, len(tokens))
 	result = append(result, tokens[0]) // Opening bracket
-	
+
 	// Process the content between brackets
 	contentTokens := tokens[1 : len(tokens)-1]
 	contentResult := s.recursiveSortTokens(contentTokens)
 	result = append(result, contentResult...)
-	
+
 	result = append(result, tokens[len(tokens)-1]) // Closing bracket
 	return result
 }
@@ -1124,10 +1142,10 @@ func (s *Sorter) findValueEnd(tokens hclwrite.Tokens, startIdx int) int {
 	braceLevel := 0
 	bracketLevel := 0
 	parenLevel := 0
-	
+
 	for i := startIdx; i < len(tokens); i++ {
 		token := tokens[i]
-		
+
 		switch token.Type {
 		case hclsyntax.TokenOBrace:
 			braceLevel++
@@ -1161,7 +1179,7 @@ func (s *Sorter) findValueEnd(tokens hclwrite.Tokens, startIdx int) int {
 			}
 		}
 	}
-	
+
 	return len(tokens)
 }
 
@@ -1200,7 +1218,7 @@ func (s *Sorter) isMultiLineObjectEntry(entry ObjectEntry) bool {
 			break
 		}
 	}
-	
+
 	// Count newlines that appear before the last non-newline token (internal newlines)
 	internalNewlines := 0
 	for i := 0; i <= lastNonNewlineIdx; i++ {
@@ -1209,7 +1227,7 @@ func (s *Sorter) isMultiLineObjectEntry(entry ObjectEntry) bool {
 			internalNewlines++
 		}
 	}
-	
+
 	// Multi-line ONLY if there are newlines within the value content
 	// Presence of brackets/braces alone doesn't make it multi-line if everything is on one line
 	// This allows single-line arrays like ["a", "b"] and objects like { key = "value" }
@@ -1220,12 +1238,12 @@ func (s *Sorter) isMultiLineObjectEntry(entry ObjectEntry) bool {
 // rebuildObjectTokens rebuilds the object with sorted entries
 func (s *Sorter) rebuildObjectTokens(tokens hclwrite.Tokens, entries []ObjectEntry, openBraceIdx int, needsSeparatorLine bool) hclwrite.Tokens {
 	result := make(hclwrite.Tokens, 0, len(tokens))
-	
+
 	// Copy everything up to and including the opening brace
 	for i := 0; i <= openBraceIdx; i++ {
 		result = append(result, tokens[i])
 	}
-	
+
 	// Check if we need a newline after opening brace
 	needNewline := false
 	if openBraceIdx+1 < len(tokens) && tokens[openBraceIdx+1].Type == hclsyntax.TokenNewline {
@@ -1235,7 +1253,7 @@ func (s *Sorter) rebuildObjectTokens(tokens hclwrite.Tokens, entries []ObjectEnt
 		})
 		needNewline = true
 	}
-	
+
 	// Count single-line entries (they all come first due to sorting)
 	singleLineCount := 0
 	for _, entry := range entries {
@@ -1244,10 +1262,10 @@ func (s *Sorter) rebuildObjectTokens(tokens hclwrite.Tokens, entries []ObjectEnt
 		}
 		singleLineCount++
 	}
-	
+
 	for i, entry := range entries {
 		isMultiLine := s.isMultiLineObjectEntry(entry)
-		
+
 		// Add separator line between single-line and multi-line groups
 		if needsSeparatorLine && i == singleLineCount && singleLineCount > 0 {
 			result = append(result, &hclwrite.Token{
@@ -1255,12 +1273,12 @@ func (s *Sorter) rebuildObjectTokens(tokens hclwrite.Tokens, entries []ObjectEnt
 				Bytes: []byte("\n"),
 			})
 		}
-		
+
 		// Add proper indentation for multiline formatting
 		if needNewline && len(entry.Tokens) > 0 {
 			// Clean up leading and trailing newlines to ensure proper spacing
 			cleanedTokens := s.cleanLeadingAndTrailingNewlines(entry.Tokens)
-			
+
 			// Preserve or add proper indentation
 			if len(cleanedTokens) > 0 {
 				firstToken := cleanedTokens[0]
@@ -1281,15 +1299,15 @@ func (s *Sorter) rebuildObjectTokens(tokens hclwrite.Tokens, entries []ObjectEnt
 			cleanedTokens := s.cleanLeadingAndTrailingNewlines(entry.Tokens)
 			result = append(result, cleanedTokens...)
 		}
-		
+
 		// Only add blank lines where needed, don't add regular newlines as entry tokens should handle that
 		if i < len(entries)-1 {
 			nextIsMultiLine := s.isMultiLineObjectEntry(entries[i+1])
-			
+
 			// Add blank line between multi-line entries ONLY
 			// Single-line entries should be grouped together without blank lines
 			shouldAddBlankLine := isMultiLine && nextIsMultiLine
-			
+
 			if shouldAddBlankLine {
 				result = append(result, &hclwrite.Token{
 					Type:  hclsyntax.TokenNewline,
@@ -1298,18 +1316,18 @@ func (s *Sorter) rebuildObjectTokens(tokens hclwrite.Tokens, entries []ObjectEnt
 			}
 		}
 	}
-	
+
 	// Find and add the closing brace and any trailing content
 	closeBraceIdx := s.findClosingBrace(tokens, openBraceIdx)
 	if closeBraceIdx >= 0 {
 		// Don't add extra newline before closing brace as entries already have newlines
-		
+
 		// Add closing brace and everything after
 		for i := closeBraceIdx; i < len(tokens); i++ {
 			result = append(result, tokens[i])
 		}
 	}
-	
+
 	return result
 }
 
@@ -1430,11 +1448,11 @@ func (s *Sorter) isSimpleObjectLiteral(tokens hclwrite.Tokens) bool {
 	if len(tokens) < 2 {
 		return false
 	}
-	
+
 	// Must start with { and end with }
 	start := -1
 	end := -1
-	
+
 	for i, token := range tokens {
 		if token.Type == hclsyntax.TokenOBrace && start == -1 {
 			start = i
@@ -1443,24 +1461,24 @@ func (s *Sorter) isSimpleObjectLiteral(tokens hclwrite.Tokens) bool {
 			end = i
 		}
 	}
-	
+
 	if start == -1 || end == -1 || start >= end {
 		return false
 	}
-	
+
 	// Check if there are any function calls, complex expressions, or interpolations
 	// that could cause corruption when we manipulate tokens
 	inString := false
 	stringDelim := byte(0)
-	
+
 	for i := start + 1; i < end; i++ {
 		token := tokens[i]
 		tokenBytes := token.Bytes
-		
+
 		if len(tokenBytes) == 0 {
 			continue
 		}
-		
+
 		// Track string state
 		if !inString && (tokenBytes[0] == '"' || tokenBytes[0] == '\'') {
 			inString = true
@@ -1474,7 +1492,7 @@ func (s *Sorter) isSimpleObjectLiteral(tokens hclwrite.Tokens) bool {
 		if inString {
 			continue
 		}
-		
+
 		// Avoid complex expressions that could cause corruption
 		switch token.Type {
 		case hclsyntax.TokenOParen, hclsyntax.TokenCParen:
@@ -1485,7 +1503,7 @@ func (s *Sorter) isSimpleObjectLiteral(tokens hclwrite.Tokens) bool {
 			return false
 		}
 	}
-	
+
 	return true
 }
 
@@ -1494,11 +1512,11 @@ func (s *Sorter) extractObjectContent(text string) string {
 	if !strings.HasPrefix(text, "object(") {
 		return ""
 	}
-	
+
 	// Find the matching closing parenthesis
 	parenCount := 0
 	start := 7 // Length of "object("
-	
+
 	for i := start; i < len(text); i++ {
 		if text[i] == '(' {
 			parenCount++
@@ -1510,7 +1528,7 @@ func (s *Sorter) extractObjectContent(text string) string {
 			parenCount--
 		}
 	}
-	
+
 	return ""
 }
 
@@ -1518,9 +1536,9 @@ func (s *Sorter) extractObjectContent(text string) string {
 func (s *Sorter) isMultiLineObjectValue(value string) bool {
 	value = strings.TrimSpace(value)
 	// Check if value contains newlines or is a complex structure
-	return strings.Contains(value, "\n") || 
-		   (strings.HasPrefix(value, "{") && strings.HasSuffix(value, "}")) ||
-		   (strings.HasPrefix(value, "[") && strings.HasSuffix(value, "]"))
+	return strings.Contains(value, "\n") ||
+		(strings.HasPrefix(value, "{") && strings.HasSuffix(value, "}")) ||
+		(strings.HasPrefix(value, "[") && strings.HasSuffix(value, "]"))
 }
 
 // isSimpleObjectLiteralText checks if text represents a simple object literal
@@ -1529,18 +1547,18 @@ func (s *Sorter) isSimpleObjectLiteralText(text string) bool {
 	if !strings.HasPrefix(text, "{") || !strings.HasSuffix(text, "}") {
 		return false
 	}
-	
+
 	// Avoid complex expressions that could cause issues
 	// Allow object() calls but avoid other complex expressions
 	if strings.Contains(text, "${") {
 		return false
 	}
-	
+
 	// Allow object() function calls as they're common in HCL type definitions
 	if strings.Contains(text, "(") && !strings.Contains(text, "object(") {
 		return false
 	}
-	
+
 	return true
 }
 
@@ -1550,23 +1568,23 @@ func (s *Sorter) sortObjectLiteralText(text string) string {
 	if len(text) < 2 {
 		return text
 	}
-	
+
 	// Remove outer braces
 	inner := strings.TrimSpace(text[1 : len(text)-1])
 	if inner == "" {
 		return text // Empty object
 	}
-	
+
 	// Parse key-value pairs
 	entries := s.parseObjectEntriesFromText(inner)
 	if len(entries) == 0 {
 		return text // Parsing failed, return original
 	}
-	
+
 	// Separate single-line and multi-line entries
 	var singleLineEntries []objectEntry
 	var multiLineEntries []objectEntry
-	
+
 	for _, entry := range entries {
 		if s.isMultiLineObjectValue(entry.value) {
 			multiLineEntries = append(multiLineEntries, entry)
@@ -1574,7 +1592,7 @@ func (s *Sorter) sortObjectLiteralText(text string) string {
 			singleLineEntries = append(singleLineEntries, entry)
 		}
 	}
-	
+
 	// Sort both groups alphabetically by key (case-insensitive)
 	sort.Slice(singleLineEntries, func(i, j int) bool {
 		return strings.ToLower(singleLineEntries[i].key) < strings.ToLower(singleLineEntries[j].key)
@@ -1582,11 +1600,11 @@ func (s *Sorter) sortObjectLiteralText(text string) string {
 	sort.Slice(multiLineEntries, func(i, j int) bool {
 		return strings.ToLower(multiLineEntries[i].key) < strings.ToLower(multiLineEntries[j].key)
 	})
-	
+
 	// Rebuild the object with proper spacing
 	var result strings.Builder
 	result.WriteString("{\n")
-	
+
 	// Write single-line entries first (grouped together)
 	for _, entry := range singleLineEntries {
 		result.WriteString("    ")
@@ -1595,12 +1613,12 @@ func (s *Sorter) sortObjectLiteralText(text string) string {
 		result.WriteString(entry.value)
 		result.WriteString("\n")
 	}
-	
+
 	// Add blank line between single-line and multi-line if both exist
 	if len(singleLineEntries) > 0 && len(multiLineEntries) > 0 {
 		result.WriteString("\n")
 	}
-	
+
 	// Write multi-line entries with blank lines between them
 	for i, entry := range multiLineEntries {
 		if i > 0 {
@@ -1612,7 +1630,7 @@ func (s *Sorter) sortObjectLiteralText(text string) string {
 		result.WriteString(entry.value)
 		result.WriteString("\n")
 	}
-	
+
 	result.WriteString("  }")
 	return result.String()
 }
@@ -1625,35 +1643,31 @@ type objectEntry struct {
 // parseObjectEntriesFromText parses key-value pairs from object literal text using HCL parsing
 func (s *Sorter) parseObjectEntriesFromText(text string) []objectEntry {
 	var entries []objectEntry
-	
-	fmt.Printf("DEBUG: parseObjectEntriesFromText called with: %q\n", text)
-	
+
 	// Create a temporary HCL file to parse the object content
 	tempContent := "temp = " + text
 	tempFile, diags := hclwrite.ParseConfig([]byte(tempContent), "", hcl.Pos{Line: 1, Column: 1})
 	if diags.HasErrors() {
-		fmt.Printf("DEBUG: HCL parsing failed: %v\n", diags)
 		return entries // Return empty if parsing fails
 	}
-	
+
 	body := tempFile.Body()
 	attrs := body.Attributes()
 	tempAttr, exists := attrs["temp"]
 	if !exists {
 		return entries
 	}
-	
+
 	// Get the tokens for the expression and parse them
 	tokens := tempAttr.Expr().BuildTokens(nil)
 	result := s.parseObjectTokensToEntries(tokens)
-	fmt.Printf("DEBUG: parseObjectEntriesFromText returning %d entries\n", len(result))
 	return result
 }
 
 // parseObjectTokensToEntries extracts key-value pairs from object tokens
 func (s *Sorter) parseObjectTokensToEntries(tokens hclwrite.Tokens) []objectEntry {
 	var entries []objectEntry
-	
+
 	// Find the opening brace
 	openBraceIdx := -1
 	for i, token := range tokens {
@@ -1662,68 +1676,68 @@ func (s *Sorter) parseObjectTokensToEntries(tokens hclwrite.Tokens) []objectEntr
 			break
 		}
 	}
-	
+
 	if openBraceIdx == -1 {
 		return entries
 	}
-	
+
 	// Parse key-value pairs between braces
 	i := openBraceIdx + 1
 	braceLevel := 0
-	
+
 	for i < len(tokens) {
 		// Skip whitespace and comments
-		for i < len(tokens) && (tokens[i].Type == hclsyntax.TokenNewline || 
-										tokens[i].Type == hclsyntax.TokenComment ||
-										string(tokens[i].Bytes) == " " ||
-										string(tokens[i].Bytes) == "\t") {
+		for i < len(tokens) && (tokens[i].Type == hclsyntax.TokenNewline ||
+			tokens[i].Type == hclsyntax.TokenComment ||
+			string(tokens[i].Bytes) == " " ||
+			string(tokens[i].Bytes) == "\t") {
 			i++
 		}
-		
+
 		if i >= len(tokens) {
 			break
 		}
-		
+
 		// Check for closing brace at top level
 		if tokens[i].Type == hclsyntax.TokenCBrace && braceLevel == 0 {
 			break
 		}
-		
+
 		// Look for key (identifier or quoted literal)
 		if tokens[i].Type == hclsyntax.TokenIdent || tokens[i].Type == hclsyntax.TokenQuotedLit {
 			keyToken := tokens[i]
 			key := strings.Trim(string(keyToken.Bytes), "\"")
 			i++
-			
+
 			// Skip whitespace to equals
 			for i < len(tokens) && (string(tokens[i].Bytes) == " " || string(tokens[i].Bytes) == "\t") {
 				i++
 			}
-			
+
 			// Expect equals sign
 			if i >= len(tokens) || tokens[i].Type != hclsyntax.TokenEqual {
 				break
 			}
 			i++ // Skip equals
-			
+
 			// Skip whitespace after equals
 			for i < len(tokens) && (string(tokens[i].Bytes) == " " || string(tokens[i].Bytes) == "\t") {
 				i++
 			}
-			
+
 			if i >= len(tokens) {
 				break
 			}
-			
+
 			// Collect value tokens
 			valueStart := i
 			braceLevel = 0
 			bracketLevel := 0
 			parenLevel := 0
-			
+
 			for i < len(tokens) {
 				token := tokens[i]
-				
+
 				if token.Type == hclsyntax.TokenOBrace {
 					braceLevel++
 				} else if token.Type == hclsyntax.TokenCBrace {
@@ -1744,21 +1758,21 @@ func (s *Sorter) parseObjectTokensToEntries(tokens hclwrite.Tokens) []objectEntr
 					// Next key at top level
 					break
 				}
-				
+
 				i++
 			}
-			
+
 			// Build value string from tokens
 			var valueBuilder strings.Builder
 			for j := valueStart; j < i; j++ {
 				valueBuilder.Write(tokens[j].Bytes)
 			}
 			value := strings.TrimSpace(valueBuilder.String())
-			
+
 			// Remove trailing comma if present
 			value = strings.TrimSuffix(value, ",")
 			value = strings.TrimSpace(value)
-			
+
 			if key != "" && value != "" {
 				entries = append(entries, objectEntry{key: key, value: value})
 			}
@@ -1766,7 +1780,7 @@ func (s *Sorter) parseObjectTokensToEntries(tokens hclwrite.Tokens) []objectEntr
 			i++
 		}
 	}
-	
+
 	return entries
 }
 
@@ -1775,7 +1789,7 @@ func (s *Sorter) isArrayLiteral(tokens hclwrite.Tokens) bool {
 	if len(tokens) < 2 {
 		return false
 	}
-	
+
 	// Find first non-whitespace token
 	for _, token := range tokens {
 		if token.Type == hclsyntax.TokenNewline || token.Type == hclsyntax.TokenComment {
@@ -1783,7 +1797,7 @@ func (s *Sorter) isArrayLiteral(tokens hclwrite.Tokens) bool {
 		}
 		return token.Type == hclsyntax.TokenOBrack
 	}
-	
+
 	return false
 }
 
@@ -1797,22 +1811,22 @@ func (s *Sorter) sortArrayLiteral(tokens hclwrite.Tokens) hclwrite.Tokens {
 			break
 		}
 	}
-	
+
 	if openBracketIdx == -1 {
 		return nil
 	}
-	
+
 	// Parse the array elements
 	elements := s.parseArrayElements(tokens, openBracketIdx)
 	if len(elements) == 0 {
 		return nil
 	}
-	
+
 	// Sort elements alphabetically
 	sort.Slice(elements, func(i, j int) bool {
 		return elements[i].Value < elements[j].Value
 	})
-	
+
 	// Rebuild the tokens
 	return s.rebuildArrayTokens(tokens, elements, openBracketIdx)
 }
@@ -1827,20 +1841,20 @@ type ArrayElement struct {
 // parseArrayElements parses elements from array tokens
 func (s *Sorter) parseArrayElements(tokens hclwrite.Tokens, startIdx int) []ArrayElement {
 	var elements []ArrayElement
-	
+
 	i := startIdx + 1 // Skip opening bracket
 	bracketLevel := 1
-	
+
 	for i < len(tokens) && bracketLevel > 0 {
 		// Skip whitespace and comments
 		for i < len(tokens) && (tokens[i].Type == hclsyntax.TokenNewline || tokens[i].Type == hclsyntax.TokenComment) {
 			i++
 		}
-		
+
 		if i >= len(tokens) {
 			break
 		}
-		
+
 		// Track bracket level
 		if tokens[i].Type == hclsyntax.TokenOBrack {
 			bracketLevel++
@@ -1850,7 +1864,7 @@ func (s *Sorter) parseArrayElements(tokens hclwrite.Tokens, startIdx int) []Arra
 				break
 			}
 		}
-		
+
 		// Look for array elements at top level
 		if bracketLevel == 1 && s.isArrayElementStart(tokens[i]) {
 			element := s.parseArrayElement(tokens, i)
@@ -1864,17 +1878,17 @@ func (s *Sorter) parseArrayElements(tokens hclwrite.Tokens, startIdx int) []Arra
 			i++
 		}
 	}
-	
+
 	return elements
 }
 
 // isArrayElementStart checks if a token could be the start of an array element
 func (s *Sorter) isArrayElementStart(token *hclwrite.Token) bool {
-	return token.Type == hclsyntax.TokenIdent || 
-		   token.Type == hclsyntax.TokenQuotedLit || 
-		   token.Type == hclsyntax.TokenNumberLit ||
-		   token.Type == hclsyntax.TokenOBrace ||
-		   token.Type == hclsyntax.TokenOBrack
+	return token.Type == hclsyntax.TokenIdent ||
+		token.Type == hclsyntax.TokenQuotedLit ||
+		token.Type == hclsyntax.TokenNumberLit ||
+		token.Type == hclsyntax.TokenOBrace ||
+		token.Type == hclsyntax.TokenOBrack
 }
 
 // parseArrayElement parses a single array element starting at the given index
@@ -1882,22 +1896,22 @@ func (s *Sorter) parseArrayElement(tokens hclwrite.Tokens, startIdx int) *ArrayE
 	if startIdx >= len(tokens) {
 		return nil
 	}
-	
+
 	// Find the end of this element
 	endIdx := s.findArrayElementEnd(tokens, startIdx)
 	if endIdx == -1 {
 		return nil
 	}
-	
+
 	// Extract all tokens for this element
 	elementTokens := make(hclwrite.Tokens, 0, endIdx-startIdx)
 	for i := startIdx; i < endIdx; i++ {
 		elementTokens = append(elementTokens, tokens[i])
 	}
-	
+
 	// Extract the value for sorting comparison
 	value := s.extractArrayElementValue(elementTokens)
-	
+
 	return &ArrayElement{
 		Value:    value,
 		Tokens:   elementTokens,
@@ -1911,10 +1925,10 @@ func (s *Sorter) findArrayElementEnd(tokens hclwrite.Tokens, startIdx int) int {
 	braceLevel := 0
 	bracketLevel := 0
 	parenLevel := 0
-	
+
 	for i := startIdx; i < len(tokens); i++ {
 		token := tokens[i]
-		
+
 		switch token.Type {
 		case hclsyntax.TokenOBrace:
 			braceLevel++
@@ -1940,7 +1954,7 @@ func (s *Sorter) findArrayElementEnd(tokens hclwrite.Tokens, startIdx int) int {
 			}
 		}
 	}
-	
+
 	return len(tokens)
 }
 
@@ -1949,35 +1963,35 @@ func (s *Sorter) extractArrayElementValue(tokens hclwrite.Tokens) string {
 	if len(tokens) == 0 {
 		return ""
 	}
-	
+
 	// For simple values, use the first meaningful token
 	for _, token := range tokens {
 		if token.Type == hclsyntax.TokenNewline || token.Type == hclsyntax.TokenComment {
 			continue
 		}
-		
+
 		value := string(token.Bytes)
-		
+
 		// Remove quotes for string literals
 		if token.Type == hclsyntax.TokenQuotedLit && len(value) >= 2 && value[0] == '"' && value[len(value)-1] == '"' {
 			return value[1 : len(value)-1]
 		}
-		
+
 		return value
 	}
-	
+
 	return ""
 }
 
 // rebuildArrayTokens rebuilds the array with sorted elements
 func (s *Sorter) rebuildArrayTokens(tokens hclwrite.Tokens, elements []ArrayElement, openBracketIdx int) hclwrite.Tokens {
 	result := make(hclwrite.Tokens, 0, len(tokens))
-	
+
 	// Copy everything up to and including the opening bracket
 	for i := 0; i <= openBracketIdx; i++ {
 		result = append(result, tokens[i])
 	}
-	
+
 	// Check if we need a newline after opening bracket
 	needNewline := false
 	if openBracketIdx+1 < len(tokens) && tokens[openBracketIdx+1].Type == hclsyntax.TokenNewline {
@@ -1987,7 +2001,7 @@ func (s *Sorter) rebuildArrayTokens(tokens hclwrite.Tokens, elements []ArrayElem
 		})
 		needNewline = true
 	}
-	
+
 	// Add sorted elements
 	for i, element := range elements {
 		// Add proper indentation for multiline formatting
@@ -2008,7 +2022,7 @@ func (s *Sorter) rebuildArrayTokens(tokens hclwrite.Tokens, elements []ArrayElem
 		} else {
 			result = append(result, element.Tokens...)
 		}
-		
+
 		// Add comma if not the last element
 		if i < len(elements)-1 {
 			result = append(result, &hclwrite.Token{
@@ -2016,7 +2030,7 @@ func (s *Sorter) rebuildArrayTokens(tokens hclwrite.Tokens, elements []ArrayElem
 				Bytes: []byte(","),
 			})
 		}
-		
+
 		// Add newline after element
 		if needNewline {
 			result = append(result, &hclwrite.Token{
@@ -2025,7 +2039,7 @@ func (s *Sorter) rebuildArrayTokens(tokens hclwrite.Tokens, elements []ArrayElem
 			})
 		}
 	}
-	
+
 	// Find and add the closing bracket and any trailing content
 	closeBracketIdx := s.findClosingBracket(tokens, openBracketIdx)
 	if closeBracketIdx >= 0 {
@@ -2036,13 +2050,13 @@ func (s *Sorter) rebuildArrayTokens(tokens hclwrite.Tokens, elements []ArrayElem
 				Bytes: []byte("\n"),
 			})
 		}
-		
+
 		// Add closing bracket and everything after
 		for i := closeBracketIdx; i < len(tokens); i++ {
 			result = append(result, tokens[i])
 		}
 	}
-	
+
 	return result
 }
 
@@ -2069,7 +2083,7 @@ func (s *Sorter) cleanLeadingAndTrailingNewlines(tokens hclwrite.Tokens) hclwrit
 	if len(tokens) == 0 {
 		return tokens
 	}
-	
+
 	// Find first non-newline token
 	firstNonNewlineIdx := -1
 	for i := 0; i < len(tokens); i++ {
@@ -2078,7 +2092,7 @@ func (s *Sorter) cleanLeadingAndTrailingNewlines(tokens hclwrite.Tokens) hclwrit
 			break
 		}
 	}
-	
+
 	if firstNonNewlineIdx == -1 {
 		// All tokens are newlines, keep just one
 		return hclwrite.Tokens{&hclwrite.Token{
@@ -2086,7 +2100,7 @@ func (s *Sorter) cleanLeadingAndTrailingNewlines(tokens hclwrite.Tokens) hclwrit
 			Bytes: []byte("\n"),
 		}}
 	}
-	
+
 	// Find last non-newline token
 	lastNonNewlineIdx := -1
 	for i := len(tokens) - 1; i >= 0; i-- {
@@ -2095,7 +2109,7 @@ func (s *Sorter) cleanLeadingAndTrailingNewlines(tokens hclwrite.Tokens) hclwrit
 			break
 		}
 	}
-	
+
 	// Extract the tokens between first and last non-newline (inclusive) and add exactly one trailing newline
 	result := make(hclwrite.Tokens, 0, lastNonNewlineIdx-firstNonNewlineIdx+2)
 	result = append(result, tokens[firstNonNewlineIdx:lastNonNewlineIdx+1]...)
@@ -2103,7 +2117,7 @@ func (s *Sorter) cleanLeadingAndTrailingNewlines(tokens hclwrite.Tokens) hclwrit
 		Type:  hclsyntax.TokenNewline,
 		Bytes: []byte("\n"),
 	})
-	
+
 	return result
 }
 
@@ -2111,7 +2125,7 @@ func (s *Sorter) cleanTrailingNewlines(tokens hclwrite.Tokens) hclwrite.Tokens {
 	if len(tokens) == 0 {
 		return tokens
 	}
-	
+
 	// Find the last non-newline token
 	lastNonNewlineIdx := -1
 	for i := len(tokens) - 1; i >= 0; i-- {
@@ -2120,7 +2134,7 @@ func (s *Sorter) cleanTrailingNewlines(tokens hclwrite.Tokens) hclwrite.Tokens {
 			break
 		}
 	}
-	
+
 	if lastNonNewlineIdx == -1 {
 		// All tokens are newlines, keep just one
 		return hclwrite.Tokens{&hclwrite.Token{
@@ -2128,18 +2142,18 @@ func (s *Sorter) cleanTrailingNewlines(tokens hclwrite.Tokens) hclwrite.Tokens {
 			Bytes: []byte("\n"),
 		}}
 	}
-	
+
 	// Keep everything up to the last non-newline token, plus exactly one newline
 	result := make(hclwrite.Tokens, 0, lastNonNewlineIdx+2)
 	for i := 0; i <= lastNonNewlineIdx; i++ {
 		result = append(result, tokens[i])
 	}
-	
+
 	// Add exactly one trailing newline
 	result = append(result, &hclwrite.Token{
 		Type:  hclsyntax.TokenNewline,
 		Bytes: []byte("\n"),
 	})
-	
+
 	return result
 }
