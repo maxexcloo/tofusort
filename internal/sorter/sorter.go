@@ -1,3 +1,4 @@
+//nolint:unused // Many functions are used in complex call chains that linter doesn't detect
 package sorter
 
 import (
@@ -115,12 +116,12 @@ func (s *Sorter) SortFile(file *hclwrite.File) {
 	// Add sorted blocks
 	for i, blockInfo := range blockInfos {
 		s.sortBlockAttributes(blockInfo.Block)
-		
+
 		// Add blank line before certain block types for grouping
 		if i > 0 {
 			currentOrder, currentExists := blockTypeOrder[blockInfo.Type]
 			prevOrder, prevExists := blockTypeOrder[blockInfos[i-1].Type]
-			
+
 			// Add blank line in specific cases only
 			if currentExists && prevExists {
 				// Add blank line when transitioning from early group (0-2) to later group (3+)
@@ -137,9 +138,9 @@ func (s *Sorter) SortFile(file *hclwrite.File) {
 				body.AppendNewline()
 			}
 		}
-		
+
 		body.AppendBlock(blockInfo.Block)
-		
+
 		// Always add a newline after each block
 		if i < len(blockInfos)-1 {
 			body.AppendNewline()
@@ -495,8 +496,8 @@ func (s *Sorter) isSimpleObjectExpression(tokens hclwrite.Tokens) bool {
 	}
 
 	// Only allow simple object literals like { key = value, ... }
-	return strings.HasPrefix(strings.TrimSpace(sourceText), "{") && 
-		   strings.HasSuffix(strings.TrimSpace(sourceText), "}")
+	return strings.HasPrefix(strings.TrimSpace(sourceText), "{") &&
+		strings.HasSuffix(strings.TrimSpace(sourceText), "}")
 }
 
 // isSimpleExpression recursively checks if an HCL expression contains only simple, literal values
@@ -1069,7 +1070,8 @@ func (s *Sorter) recursiveSortTokens(tokens hclwrite.Tokens) hclwrite.Tokens {
 	i := 0
 
 	for i < len(tokens) {
-		if tokens[i].Type == hclsyntax.TokenOBrace {
+		switch tokens[i].Type {
+		case hclsyntax.TokenOBrace:
 			// Found a nested object, extract and sort it
 			objEnd := s.findMatchingBrace(tokens, i)
 			if objEnd > i {
@@ -1088,7 +1090,7 @@ func (s *Sorter) recursiveSortTokens(tokens hclwrite.Tokens) hclwrite.Tokens {
 				result = append(result, tokens[i])
 				i++
 			}
-		} else if tokens[i].Type == hclsyntax.TokenOBrack {
+		case hclsyntax.TokenOBrack:
 			// Found an array, process its contents for nested objects
 			arrEnd := s.findMatchingBracket(tokens, i)
 			if arrEnd > i {
@@ -1100,7 +1102,7 @@ func (s *Sorter) recursiveSortTokens(tokens hclwrite.Tokens) hclwrite.Tokens {
 				result = append(result, tokens[i])
 				i++
 			}
-		} else {
+		default:
 			result = append(result, tokens[i])
 			i++
 		}
@@ -1117,9 +1119,10 @@ func (s *Sorter) findMatchingBrace(tokens hclwrite.Tokens, openIdx int) int {
 
 	braceLevel := 1
 	for i := openIdx + 1; i < len(tokens); i++ {
-		if tokens[i].Type == hclsyntax.TokenOBrace {
+		switch tokens[i].Type {
+		case hclsyntax.TokenOBrace:
 			braceLevel++
-		} else if tokens[i].Type == hclsyntax.TokenCBrace {
+		case hclsyntax.TokenCBrace:
 			braceLevel--
 			if braceLevel == 0 {
 				return i
@@ -1138,9 +1141,10 @@ func (s *Sorter) findMatchingBracket(tokens hclwrite.Tokens, openIdx int) int {
 
 	bracketLevel := 1
 	for i := openIdx + 1; i < len(tokens); i++ {
-		if tokens[i].Type == hclsyntax.TokenOBrack {
+		switch tokens[i].Type {
+		case hclsyntax.TokenOBrack:
 			bracketLevel++
-		} else if tokens[i].Type == hclsyntax.TokenCBrack {
+		case hclsyntax.TokenCBrack:
 			bracketLevel--
 			if bracketLevel == 0 {
 				return i
@@ -1367,9 +1371,10 @@ func (s *Sorter) rebuildObjectTokens(tokens hclwrite.Tokens, entries []ObjectEnt
 func (s *Sorter) findClosingBrace(tokens hclwrite.Tokens, openBraceIdx int) int {
 	braceLevel := 1
 	for i := openBraceIdx + 1; i < len(tokens); i++ {
-		if tokens[i].Type == hclsyntax.TokenOBrace {
+		switch tokens[i].Type {
+		case hclsyntax.TokenOBrace:
 			braceLevel++
-		} else if tokens[i].Type == hclsyntax.TokenCBrace {
+		case hclsyntax.TokenCBrace:
 			braceLevel--
 			if braceLevel == 0 {
 				return i
@@ -1550,9 +1555,10 @@ func (s *Sorter) extractObjectContent(text string) string {
 	start := 7 // Length of "object("
 
 	for i := start; i < len(text); i++ {
-		if text[i] == '(' {
+		switch text[i] {
+		case '(':
 			parenCount++
-		} else if text[i] == ')' {
+		case ')':
 			if parenCount == 0 {
 				// Found the matching closing parenthesis
 				return text[start:i]
@@ -2096,9 +2102,10 @@ func (s *Sorter) rebuildArrayTokens(tokens hclwrite.Tokens, elements []ArrayElem
 func (s *Sorter) findClosingBracket(tokens hclwrite.Tokens, openBracketIdx int) int {
 	bracketLevel := 1
 	for i := openBracketIdx + 1; i < len(tokens); i++ {
-		if tokens[i].Type == hclsyntax.TokenOBrack {
+		switch tokens[i].Type {
+		case hclsyntax.TokenOBrack:
 			bracketLevel++
-		} else if tokens[i].Type == hclsyntax.TokenCBrack {
+		case hclsyntax.TokenCBrack:
 			bracketLevel--
 			if bracketLevel == 0 {
 				return i

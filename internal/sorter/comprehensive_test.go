@@ -438,7 +438,6 @@ func TestProxmoxProviderForEach(t *testing.T) {
 	testSorting(t, input, expected)
 }
 
-
 // TestComplexTfvarsFile tests .tfvars file sorting
 func TestComplexTfvarsFile(t *testing.T) {
 	input := `tags = ["production", "infrastructure"]
