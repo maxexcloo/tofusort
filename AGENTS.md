@@ -1,4 +1,4 @@
-# CLAUDE.md - Development Guide
+# AGENTS.md - Development Guide
 
 ## Project Overview
 **Purpose**: Tool to sort OpenTofu/Terraform configuration files alphabetically
