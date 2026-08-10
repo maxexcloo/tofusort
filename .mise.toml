@@ -19,7 +19,7 @@ fi
 """
 
 [tasks.cleanup]
-description = "Clean build artifacts"
+description = "Clean build artefacts"
 run = "rm -f tofusort"
 
 [tasks.dev]

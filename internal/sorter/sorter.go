@@ -213,7 +213,6 @@ func (s *Sorter) sortBlockAttributes(block *hclwrite.Block) {
 
 	for name, attr := range attrs {
 		expr := attr.Expr()
-		// DISABLED: Expression sorting causes corruption - keep original expressions
 		sortedExpr := s.sortExpression(expr)
 
 		isMultiLine := s.isMultiLineAttribute(sortedExpr)

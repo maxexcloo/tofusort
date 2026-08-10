@@ -16,6 +16,7 @@
 - Sort unordered peer entries by value shape, then alphabetically within each
   shape. Preserve semantic and procedural order.
 - Update `README.md` and `ARCHITECTURE.md` when behaviour changes.
+- Use `.yaml` for GitHub Actions workflows.
 - Preserve `LICENSE` and its legal text; never relicense without explicit approval.
 - Use Australian English in project-owned prose and identifiers. Preserve external
   names and terminology.

@@ -1,4 +1,4 @@
-# ARCHITECTURE.md - Technical Design
+# Technical Design
 
 ## Overview
 
@@ -44,7 +44,8 @@ var blockTypeOrder = map[string]int{
 ```go
 var metaArgumentOrder = map[string]int{
     "count": 0, "for_each": 1,
-    "lifecycle": 998, "depends_on": 999,
+    "depends_on": 998, "force_new": 999,
+    "lifecycle": 1000, "triggers_replace": 1001,
 }
 ```
 

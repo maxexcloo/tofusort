@@ -27,7 +27,7 @@ mise run build
 ### Advanced Features
 
 - **Dynamic blocks**: Sorted by label name, then by `for_each` expression
-- **Meta-arguments**: `count`/`for_each` first, `lifecycle`/`depends_on` last
+- **Meta-arguments**: `count`/`for_each` first; dependency and lifecycle fields last
 - **Multi-line attributes**: Proper spacing with blank lines
 - **Validation blocks**: Sorted by `error_message` content
 
@@ -108,7 +108,7 @@ tofusort applies consistent sorting rules:
 
 ## Documentation
 
-- **[ARCHITECTURE.md](ARCHITECTURE.md)**: Technical design, components, and algorithms
+- **[Architecture](docs/architecture.md)**: Technical design, components, and algorithms
 - **[AGENTS.md](AGENTS.md)**: Development standards and contribution guidelines
 
 ---
