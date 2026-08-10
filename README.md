@@ -93,6 +93,7 @@ mise run lint
 ## How It Works
 
 tofusort applies consistent sorting rules:
+
 - **Attributes**: Alphabetical with meta-argument priorities
 - **Block types**: terraform → provider → variable → locals → data → resource → module → output
 - **Spacing**: Automatic formatting with proper blank lines
@@ -108,9 +109,9 @@ tofusort applies consistent sorting rules:
 
 ## Documentation
 
-- **[Architecture](docs/architecture.md)**: Technical design, components, and algorithms
 - **[AGENTS.md](AGENTS.md)**: Development standards and contribution guidelines
+- **[Architecture](docs/architecture.md)**: Technical design, components, and algorithms
 
 ---
 
-*A tool for maintaining consistently organised OpenTofu and Terraform configuration.*
+_A tool for maintaining consistently organised OpenTofu and Terraform configuration._

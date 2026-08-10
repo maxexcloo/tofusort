@@ -4,6 +4,8 @@
 
 - Keep CLI commands in `cmd/tofusort/`.
 - Keep HCL parsing and formatting in `internal/parser/`.
+- Keep only `AGENTS.md` and `README.md` as root Markdown files; put other project
+  documentation in `docs/`.
 - Keep sorting behaviour and its tests in `internal/sorter/`.
 - Support HCL-format `.tf` and `.tfvars` files. Do not claim JSON support unless a
   JSON-aware implementation and tests are included.
@@ -15,8 +17,9 @@
 - Preserve relative comment positions when sorting HCL.
 - Sort unordered peer entries by value shape, then alphabetically within each
   shape. Preserve semantic and procedural order.
-- Update `README.md` and `ARCHITECTURE.md` when behaviour changes.
-- Use `.yaml` for GitHub Actions workflows.
+- Update `README.md` and `docs/architecture.md` when behaviour changes.
+- Use `.yaml`, never `.yml`, for project-owned YAML files unless external tooling
+  requires a fixed filename.
 - Preserve `LICENSE` and its legal text; never relicense without explicit approval.
 - Use Australian English in project-owned prose and identifiers. Preserve external
   names and terminology.
