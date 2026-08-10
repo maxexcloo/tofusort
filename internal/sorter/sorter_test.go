@@ -3,7 +3,7 @@ package sorter
 import (
 	"testing"
 
-	"github.com/yourusername/tofusort/internal/parser"
+	"github.com/maxexcloo/tofusort/internal/parser"
 )
 
 func TestSortSimpleProvider(t *testing.T) {

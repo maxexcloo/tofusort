@@ -1,26 +1,30 @@
-[env]
-GOPATH = "{{env.PWD}}/.go"
-
 [tools]
 go = "1.26.5"
 golangci-lint = "2.12.2"
-goreleaser = "2.17.1"
 
 [tasks.build]
 description = "Build the tofusort binary"
 run = "go build -o tofusort ./cmd/tofusort"
 
 [tasks.check]
-description = "Run all checks (format, lint, test)"
-depends = ["fmt", "lint", "test"]
+depends = ["lint", "test"]
+description = "Run all checks"
+run = """
+unformatted="$(gofmt -l .)"
+if [[ -n "$unformatted" ]]; then
+  echo "Files require gofmt:"
+  echo "$unformatted"
+  exit 1
+fi
+"""
 
-[tasks.clean]
+[tasks.cleanup]
 description = "Clean build artifacts"
 run = "rm -f tofusort"
 
 [tasks.dev]
-description = "Development validation cycle"
 depends = ["check"]
+description = "Development validation cycle"
 
 [tasks.fmt]
 description = "Format Go code"

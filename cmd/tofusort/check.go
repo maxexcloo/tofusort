@@ -1,14 +1,15 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
 
+	"github.com/maxexcloo/tofusort/internal/parser"
+	"github.com/maxexcloo/tofusort/internal/sorter"
 	"github.com/spf13/cobra"
-	"github.com/yourusername/tofusort/internal/parser"
-	"github.com/yourusername/tofusort/internal/sorter"
 )
 
 var checkCmd = &cobra.Command{
@@ -31,11 +32,12 @@ func runCheck(cmd *cobra.Command, args []string) error {
 	s := sorter.New()
 
 	var unsortedFiles []string
+	var errs []error
 
 	for _, path := range args {
 		files, err := checkPath(path, p, s)
 		if err != nil {
-			return fmt.Errorf("failed to check %s: %w", path, err)
+			errs = append(errs, fmt.Errorf("failed to check %s: %w", path, err))
 		}
 		unsortedFiles = append(unsortedFiles, files...)
 	}
@@ -44,12 +46,19 @@ func runCheck(cmd *cobra.Command, args []string) error {
 		for _, file := range unsortedFiles {
 			fmt.Printf("Not sorted: %s\n", file)
 		}
-		fmt.Printf("\nFound %d unsorted file(s). Run 'tofusort sort' to fix.\n", len(unsortedFiles))
-		os.Exit(1)
+		errs = append(
+			errs,
+			fmt.Errorf(
+				"found %d unsorted file(s); run 'tofusort sort' to fix",
+				len(unsortedFiles),
+			),
+		)
 	}
 
-	fmt.Println("All files are sorted!")
-	return nil
+	if len(errs) == 0 {
+		fmt.Println("All files are sorted!")
+	}
+	return errors.Join(errs...)
 }
 
 func checkPath(path string, p *parser.Parser, s *sorter.Sorter) ([]string, error) {
@@ -76,11 +85,13 @@ func checkPath(path string, p *parser.Parser, s *sorter.Sorter) ([]string, error
 
 func checkDirectory(dir string, p *parser.Parser, s *sorter.Sorter) ([]string, error) {
 	var unsortedFiles []string
+	var errs []error
 
 	if recursive {
 		err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 			if err != nil {
-				return err
+				errs = append(errs, fmt.Errorf("failed to access %s: %w", path, err))
+				return nil
 			}
 
 			if d.IsDir() {
@@ -90,7 +101,8 @@ func checkDirectory(dir string, p *parser.Parser, s *sorter.Sorter) ([]string, e
 			if isTerraformFile(path) {
 				unsorted, err := checkFile(path, p, s)
 				if err != nil {
-					return err
+					errs = append(errs, fmt.Errorf("failed to check %s: %w", path, err))
+					return nil
 				}
 				if unsorted {
 					unsortedFiles = append(unsortedFiles, path)
@@ -99,7 +111,10 @@ func checkDirectory(dir string, p *parser.Parser, s *sorter.Sorter) ([]string, e
 
 			return nil
 		})
-		return unsortedFiles, err
+		if err != nil {
+			errs = append(errs, err)
+		}
+		return unsortedFiles, errors.Join(errs...)
 	}
 
 	entries, err := os.ReadDir(dir)
@@ -116,7 +131,8 @@ func checkDirectory(dir string, p *parser.Parser, s *sorter.Sorter) ([]string, e
 		if isTerraformFile(path) {
 			unsorted, err := checkFile(path, p, s)
 			if err != nil {
-				return nil, err
+				errs = append(errs, fmt.Errorf("failed to check %s: %w", path, err))
+				continue
 			}
 			if unsorted {
 				unsortedFiles = append(unsortedFiles, path)
@@ -124,7 +140,7 @@ func checkDirectory(dir string, p *parser.Parser, s *sorter.Sorter) ([]string, e
 		}
 	}
 
-	return unsortedFiles, nil
+	return unsortedFiles, errors.Join(errs...)
 }
 
 func checkFile(path string, p *parser.Parser, s *sorter.Sorter) (bool, error) {

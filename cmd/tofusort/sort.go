@@ -1,15 +1,16 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/maxexcloo/tofusort/internal/parser"
+	"github.com/maxexcloo/tofusort/internal/sorter"
 	"github.com/spf13/cobra"
-	"github.com/yourusername/tofusort/internal/parser"
-	"github.com/yourusername/tofusort/internal/sorter"
 )
 
 var (
@@ -35,14 +36,15 @@ func init() {
 func runSort(cmd *cobra.Command, args []string) error {
 	p := parser.New()
 	s := sorter.New()
+	var errs []error
 
 	for _, path := range args {
 		if err := processPath(path, p, s); err != nil {
-			return fmt.Errorf("failed to process %s: %w", path, err)
+			errs = append(errs, fmt.Errorf("failed to process %s: %w", path, err))
 		}
 	}
 
-	return nil
+	return errors.Join(errs...)
 }
 
 func processPath(path string, p *parser.Parser, s *sorter.Sorter) error {
@@ -59,10 +61,13 @@ func processPath(path string, p *parser.Parser, s *sorter.Sorter) error {
 }
 
 func processDirectory(dir string, p *parser.Parser, s *sorter.Sorter) error {
+	var errs []error
+
 	if recursive {
-		return filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		walkErr := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 			if err != nil {
-				return err
+				errs = append(errs, fmt.Errorf("failed to access %s: %w", path, err))
+				return nil
 			}
 
 			if d.IsDir() {
@@ -70,11 +75,17 @@ func processDirectory(dir string, p *parser.Parser, s *sorter.Sorter) error {
 			}
 
 			if isTerraformFile(path) {
-				return processFile(path, p, s)
+				if err := processFile(path, p, s); err != nil {
+					errs = append(errs, fmt.Errorf("failed to process %s: %w", path, err))
+				}
 			}
 
 			return nil
 		})
+		if walkErr != nil {
+			errs = append(errs, walkErr)
+		}
+		return errors.Join(errs...)
 	}
 
 	entries, err := os.ReadDir(dir)
@@ -90,12 +101,12 @@ func processDirectory(dir string, p *parser.Parser, s *sorter.Sorter) error {
 		path := filepath.Join(dir, entry.Name())
 		if isTerraformFile(path) {
 			if err := processFile(path, p, s); err != nil {
-				return err
+				errs = append(errs, fmt.Errorf("failed to process %s: %w", path, err))
 			}
 		}
 	}
 
-	return nil
+	return errors.Join(errs...)
 }
 
 func processFile(path string, p *parser.Parser, s *sorter.Sorter) error {

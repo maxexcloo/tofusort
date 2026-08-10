@@ -1,4 +1,4 @@
-module github.com/yourusername/tofusort
+module github.com/maxexcloo/tofusort
 
 go 1.26.0
 

@@ -14,8 +14,8 @@ Command-line tool for sorting OpenTofu/Terraform configuration files alphabetica
 
 ### Parser Layer
 - **Comment Preservation**: Maintains all comments and expressions
-- **File Support**: `.tf` and `.tfvars` files (HCL and JSON syntax)
-- **Format Cleanup**: Removes excessive blank lines, standardizes formatting
+- **File Support**: HCL-format `.tf` and `.tfvars` files
+- **Format Cleanup**: Removes excessive blank lines and standardises formatting
 - **HCL Integration**: Native `hclwrite` package for AST manipulation
 
 ### Sorter Engine
