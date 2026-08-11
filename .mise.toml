@@ -36,7 +36,7 @@ run = "go install ./cmd/tofusort"
 
 [tasks.lint]
 description = "Run linter"
-run = "golangci-lint run"
+run = "golangci-lint run ./..."
 
 [tasks.test]
 description = "Run all tests"
