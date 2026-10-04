@@ -1092,7 +1092,7 @@ func (s *Sorter) rebuildObjectTokens(tokens hclwrite.Tokens, entries []ObjectEnt
 	}
 
 	// Find and add the closing brace and any trailing content
-	closeBraceIdx := s.findClosingBrace(tokens, openBraceIdx)
+	closeBraceIdx := s.findMatchingBrace(tokens, openBraceIdx)
 	if closeBraceIdx >= 0 {
 		// Don't add extra newline before closing brace as entries already have newlines
 
@@ -1103,23 +1103,6 @@ func (s *Sorter) rebuildObjectTokens(tokens hclwrite.Tokens, entries []ObjectEnt
 	}
 
 	return result
-}
-
-// findClosingBrace finds the matching closing brace for an opening brace
-func (s *Sorter) findClosingBrace(tokens hclwrite.Tokens, openBraceIdx int) int {
-	braceLevel := 1
-	for i := openBraceIdx + 1; i < len(tokens); i++ {
-		switch tokens[i].Type {
-		case hclsyntax.TokenOBrace:
-			braceLevel++
-		case hclsyntax.TokenCBrace:
-			braceLevel--
-			if braceLevel == 0 {
-				return i
-			}
-		}
-	}
-	return -1
 }
 
 // getValidationErrorMessage extracts the error_message from a validation block
