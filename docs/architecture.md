@@ -17,14 +17,14 @@ Command-line tool for sorting OpenTofu/Terraform configuration files alphabetica
 
 - **Comment Preservation**: Maintains all comments and expressions
 - **File Support**: HCL-format `.tf` and `.tfvars` files
-- **Format Cleanup**: Removes excessive blank lines and standardises formatting
+- **Format Cleanup**: Removes excessive syntactic blank lines while preserving literal and comment token contents
 - **HCL Integration**: Native `hclwrite` package for AST manipulation
 
 ### Sorter Engine
 
 - **Attribute Sorting**: Alphabetical with meta-argument priorities
 - **Block Sorting**: terraform → provider → variable → locals → data → resource → module → output
-- **Nested Sorting**: Recursive sorting of all nested structures
+- **Nested Sorting**: Recursive sorting; bodies with comments between entries and expressions containing comments retain their order; an AST check preserves quoted or computed keys and complex expressions
 - **Special Cases**: Validation and dynamic blocks with custom logic
 
 ## Data Flow

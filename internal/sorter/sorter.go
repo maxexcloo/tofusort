@@ -4,6 +4,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 )
@@ -48,6 +49,9 @@ var metaArgumentOrder = map[string]int{
 
 func (s *Sorter) SortFile(file *hclwrite.File) {
 	body := file.Body()
+	if s.sortCommentedBody(body) {
+		return
+	}
 	blocks := body.Blocks()
 	attrs := body.Attributes()
 
@@ -75,7 +79,7 @@ func (s *Sorter) SortFile(file *hclwrite.File) {
 		}
 	}
 
-	sort.Slice(blockInfos, func(i, j int) bool {
+	sort.SliceStable(blockInfos, func(i, j int) bool {
 		return s.compareBlocks(blockInfos[i], blockInfos[j])
 	})
 
@@ -198,6 +202,9 @@ func (s *Sorter) compareBlocks(a, b BlockInfo) bool {
 
 func (s *Sorter) sortBlockAttributes(block *hclwrite.Block) {
 	body := block.Body()
+	if s.sortCommentedBody(body) {
+		return
+	}
 	attrs := body.Attributes()
 	nestedBlocks := body.Blocks()
 
@@ -258,7 +265,7 @@ func (s *Sorter) sortBlockAttributes(block *hclwrite.Block) {
 	sort.Slice(lateAttrs, func(i, j int) bool {
 		return s.compareLateAttributes(lateAttrs[i].Name, lateAttrs[j].Name)
 	})
-	sort.Slice(regularBlocks, func(i, j int) bool {
+	sort.SliceStable(regularBlocks, func(i, j int) bool {
 		return s.compareBlocks(BlockInfo{Block: regularBlocks[i], Type: regularBlocks[i].Type()},
 			BlockInfo{Block: regularBlocks[j], Type: regularBlocks[j].Type()})
 	})
@@ -270,6 +277,11 @@ func (s *Sorter) sortBlockAttributes(block *hclwrite.Block) {
 	}
 	for _, block := range nestedBlocks {
 		body.RemoveBlock(block)
+	}
+
+	// A single-line block needs a newline before recreated attributes.
+	if len(body.BuildTokens(nil)) == 0 {
+		body.AppendNewline()
 	}
 
 	// Add content in the correct order
@@ -323,6 +335,48 @@ func (s *Sorter) sortBlockAttributes(block *hclwrite.Block) {
 		s.sortBlockAttributes(block)
 		body.AppendBlock(block)
 	}
+}
+
+// Keep commented bodies in place so standalone and attached comments do not move.
+// Un-commented child bodies and expressions can still be sorted independently.
+func (s *Sorter) sortCommentedBody(body *hclwrite.Body) bool {
+	nested := make(map[*hclwrite.Token]bool)
+	for _, attr := range body.Attributes() {
+		for _, token := range attr.Expr().BuildTokens(nil) {
+			nested[token] = true
+		}
+	}
+	for _, block := range body.Blocks() {
+		for _, token := range block.Body().BuildTokens(nil) {
+			nested[token] = true
+		}
+	}
+	directComment := false
+	for _, token := range body.BuildTokens(nil) {
+		if token.Type == hclsyntax.TokenComment && !nested[token] {
+			directComment = true
+			break
+		}
+	}
+	if !directComment {
+		return false
+	}
+	for name, attr := range body.Attributes() {
+		body.SetAttributeRaw(name, s.sortExpression(attr.Expr()).BuildTokens(nil))
+	}
+	for _, block := range body.Blocks() {
+		s.sortBlockAttributes(block)
+	}
+	return true
+}
+
+func hasComments(tokens hclwrite.Tokens) bool {
+	for _, token := range tokens {
+		if token.Type == hclsyntax.TokenComment {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *Sorter) isEarlyAttribute(name string) bool {
@@ -437,6 +491,13 @@ func (s *Sorter) writeAttributeGroup(body *hclwrite.Body, attrs []AttrInfo) {
 // sortExpression attempts to sort object expressions using token-based approach
 func (s *Sorter) sortExpression(expr *hclwrite.Expression) *hclwrite.Expression {
 	tokens := expr.BuildTokens(nil)
+	if hasComments(tokens) {
+		return expr
+	}
+	parsed, diags := hclsyntax.ParseExpression(tokens.Bytes(), "", hcl.InitialPos)
+	if diags.HasErrors() || !s.isSimpleExpression(parsed) {
+		return expr
+	}
 
 	// Parse the expression using HCL's AST parser to understand its structure
 	if s.isSimpleObjectExpression(tokens) {
@@ -498,8 +559,6 @@ func (s *Sorter) isSimpleObjectExpression(tokens hclwrite.Tokens) bool {
 }
 
 // isSimpleExpression recursively checks if an HCL expression contains only simple, literal values
-//
-//nolint:unused // Used recursively but linter doesn't detect it
 func (s *Sorter) isSimpleExpression(expr hclsyntax.Expression) bool {
 	switch e := expr.(type) {
 	case *hclsyntax.ObjectConsExpr:
@@ -534,8 +593,9 @@ func (s *Sorter) isSimpleExpression(expr hclsyntax.Expression) bool {
 		return true
 
 	case *hclsyntax.ObjectConsKeyExpr:
-		// Object keys (identifiers or literals used as keys)
-		return true
+		// The token sorter supports bare keys only. Preserve quoted and computed keys.
+		key, ok := e.Wrapped.(*hclsyntax.ScopeTraversalExpr)
+		return ok && len(key.Traversal) == 1
 
 	case *hclsyntax.TemplateExpr:
 		// Template expressions like quoted strings

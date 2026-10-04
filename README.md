@@ -21,8 +21,15 @@ mise run build
 - **Block sorting**: Alphabetical by type (terraform → provider → variable → locals → data → resource → module → output)
 - **Comment preservation**: Maintains all comments in their relative positions
 - **File support**: Handles HCL-format `.tf` and `.tfvars` files
-- **Nested sorting**: Recursive alphabetical sorting of all nested structures
+- **Nested sorting**: Recursive alphabetical sorting of supported nested structures
 - **Spacing management**: Automatic formatting with proper blank line handling
+
+Bodies with comments between entries retain their existing order to keep comments
+attached to the intended configuration. Expressions containing comments also
+retain their order. Uncommented child bodies and expressions are still sorted.
+Expressions with quoted or computed keys, comprehensions, and non-type function
+calls are preserved. Formatting preserves whitespace inside heredocs, string
+literals and comments.
 
 ### Advanced Features
 

@@ -1,10 +1,13 @@
 package parser
 
 import (
+	"bytes"
 	"fmt"
 	"regexp"
+	"strings"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 )
 
@@ -30,23 +33,27 @@ func (p *Parser) FormatFile(file *hclwrite.File) []byte {
 }
 
 func (p *Parser) cleanupBlankLines(content []byte) []byte {
-	text := string(content)
-
-	// Replace multiple consecutive empty lines with single empty line
-	// This regex matches 3 or more consecutive newlines and replaces with 2 newlines
-	re := regexp.MustCompile(`\n\n\n+`)
-	text = re.ReplaceAllString(text, "\n\n")
-
-	// Clean up blank lines at the start of blocks (after opening brace)
-	// This handles the case where we have "{\n\n\n  attribute"
+	tokens, diags := hclsyntax.LexConfig(content, "", hcl.InitialPos)
+	if diags.HasErrors() {
+		return content
+	}
+	blankLinesRe := regexp.MustCompile(`\n\n\n+`)
 	blockStartRe := regexp.MustCompile(`\{\n\n+(\s+)`)
-	text = blockStartRe.ReplaceAllString(text, "{\n$1")
+	clean := func(part []byte) []byte {
+		part = blankLinesRe.ReplaceAll(part, []byte("\n\n"))
+		return blockStartRe.ReplaceAll(part, []byte("{\n$1"))
+	}
 
-	// Remove blank lines at the start of file
-	text = regexp.MustCompile(`^\n+`).ReplaceAllString(text, "")
-
-	// Ensure file ends with exactly one newline
-	text = regexp.MustCompile(`\n*$`).ReplaceAllString(text, "\n")
-
-	return []byte(text)
+	var result bytes.Buffer
+	start := 0
+	for _, token := range tokens {
+		switch token.Type {
+		case hclsyntax.TokenComment, hclsyntax.TokenQuotedLit, hclsyntax.TokenStringLit:
+			result.Write(clean(content[start:token.Range.Start.Byte]))
+			result.Write(token.Bytes)
+			start = token.Range.End.Byte
+		}
+	}
+	result.Write(clean(content[start:]))
+	return []byte(strings.Trim(result.String(), "\n") + "\n")
 }

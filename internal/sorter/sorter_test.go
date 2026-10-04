@@ -1,10 +1,49 @@
 package sorter
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/maxexcloo/tofusort/internal/parser"
 )
+
+func TestSortPreservesCommentedBodiesAndExpressions(t *testing.T) {
+	input := `# File header
+
+locals {
+  # Keep this with z.
+  z = 1 # Inline note
+
+  a = {
+    # Object note
+    z = 1
+    a = 2
+  }
+
+  # Footer inside locals
+}
+
+# File footer
+`
+	p := parser.New()
+	file, err := p.ParseFile([]byte(input))
+	if err != nil {
+		t.Fatal(err)
+	}
+	New().SortFile(file)
+	output := string(p.FormatFile(file))
+	for _, comment := range []string{"# File header", "# Keep this with z.", "# Inline note", "# Object note", "# Footer inside locals", "# File footer"} {
+		if strings.Count(output, comment) != 1 {
+			t.Errorf("comment %q was lost or duplicated:\n%s", comment, output)
+		}
+	}
+	if strings.Index(output, "# File header") > strings.Index(output, "locals") ||
+		strings.Index(output, "# File footer") < strings.LastIndex(output, "}") ||
+		!strings.Contains(output, "z = 1 # Inline note") ||
+		strings.Index(output, "# Object note") > strings.Index(output, "a = 2") {
+		t.Errorf("comment attachment changed:\n%s", output)
+	}
+}
 
 func TestSortSimpleProvider(t *testing.T) {
 	input := `provider "test" {
@@ -454,5 +493,55 @@ func testSorting(t *testing.T, input, expected string) {
 	result := string(p.FormatFile(file))
 	if result != expected {
 		t.Errorf("Sorting failed.\nExpected:\n%s\nGot:\n%s", expected, result)
+	}
+}
+
+func TestSortPreservesComplexNestedExpressions(t *testing.T) {
+	inputs := []string{
+		`locals {
+ policies = [{ resources = jsonencode({ for zone in var.zones : "${zone}" => "*" }) }]
+}`,
+		`locals {
+ schema = { "Compute.Firmware" = jsonencode({ defaultValue = "UEFI_64" }) }
+}`,
+		`locals {
+ names = { "z.key" = "last", "a.key" = "first" }
+}`,
+	}
+	for _, input := range inputs {
+		t.Run(input, func(t *testing.T) {
+			p := parser.New()
+			file, err := p.ParseFile([]byte(input))
+			if err != nil {
+				t.Fatal(err)
+			}
+			original := string(p.FormatFile(file))
+			New().SortFile(file)
+			result := p.FormatFile(file)
+			again, err := p.ParseFile(result)
+			if err != nil {
+				t.Fatalf("sort produced invalid HCL: %v\n%s", err, result)
+			}
+			if string(result) != original {
+				t.Fatalf("unsupported expression changed:\n%s", result)
+			}
+			New().SortFile(again)
+			if string(p.FormatFile(again)) != string(result) {
+				t.Fatal("sort is not idempotent")
+			}
+		})
+	}
+}
+
+func TestSortSingleLineBlock(t *testing.T) {
+	p := parser.New()
+	file, err := p.ParseFile([]byte(`locals { name = "value" }`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	New().SortFile(file)
+	output := p.FormatFile(file)
+	if _, err := p.ParseFile(output); err != nil {
+		t.Fatalf("invalid output: %v\n%s", err, output)
 	}
 }
