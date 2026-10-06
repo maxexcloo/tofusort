@@ -111,7 +111,7 @@ func processDirectory(dir string, p *parser.Parser, s *sorter.Sorter) error {
 
 func processFile(path string, p *parser.Parser, s *sorter.Sorter) error {
 	if !isTerraformFile(path) {
-		return nil
+		return fmt.Errorf("unsupported file format: %s (expected .tf or .tfvars)", path)
 	}
 
 	content, err := os.ReadFile(path)
@@ -124,7 +124,9 @@ func processFile(path string, p *parser.Parser, s *sorter.Sorter) error {
 		return fmt.Errorf("failed to parse file: %w", err)
 	}
 
-	s.SortFile(file)
+	if err := s.SortFile(file); err != nil {
+		return err
+	}
 
 	newContent := p.FormatFile(file)
 
@@ -136,13 +138,46 @@ func processFile(path string, p *parser.Parser, s *sorter.Sorter) error {
 	}
 
 	if string(content) != string(newContent) {
-		if err := os.WriteFile(path, newContent, 0644); err != nil {
+		if err := replaceFile(path, newContent); err != nil {
 			return fmt.Errorf("failed to write file: %w", err)
 		}
 		fmt.Printf("Sorted: %s\n", path)
 	}
 
 	return nil
+}
+
+func replaceFile(path string, content []byte) error {
+	// Replace the target rather than breaking an explicitly supplied symlink.
+	target, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		return err
+	}
+	info, err := os.Stat(target)
+	if err != nil {
+		return err
+	}
+	temp, err := os.CreateTemp(filepath.Dir(target), ".tofusort-*")
+	if err != nil {
+		return err
+	}
+	defer func() { _ = os.Remove(temp.Name()) }()
+	if _, err := temp.Write(content); err != nil {
+		_ = temp.Close()
+		return err
+	}
+	if err := temp.Chmod(info.Mode().Perm()); err != nil {
+		_ = temp.Close()
+		return err
+	}
+	if err := temp.Sync(); err != nil {
+		_ = temp.Close()
+		return err
+	}
+	if err := temp.Close(); err != nil {
+		return err
+	}
+	return os.Rename(temp.Name(), target)
 }
 
 func isTerraformFile(path string) bool {

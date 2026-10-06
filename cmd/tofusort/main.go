@@ -8,8 +8,10 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "tofusort",
-	Short: "Sort OpenTofu/Terraform configuration files alphabetically",
+	Use:           "tofusort",
+	SilenceErrors: true,
+	SilenceUsage:  true,
+	Short:         "Sort OpenTofu/Terraform configuration files alphabetically",
 	Long: `tofusort is a tool to sort OpenTofu/Terraform configuration files alphabetically.
 It sorts blocks by type, attributes within blocks, and preserves comments and formatting.`,
 }

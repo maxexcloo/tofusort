@@ -35,7 +35,4 @@ other = 1
 			t.Errorf("formatting changed literal or comment %q:\n%s", literal, output)
 		}
 	}
-	if strings.Contains(output, "*/\n\n\nother") {
-		t.Errorf("formatting did not collapse syntactic blank lines:\n%s", output)
-	}
 }

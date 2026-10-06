@@ -1,5 +1,14 @@
 # Repository Review Plan
 
+Historical findings from the earlier review. The October 2026 follow-up fixed
+nested-block ordering, duplicate-key value changes, duplicate CLI diagnostics,
+unsupported explicit inputs and truncating writes. Earlier commits already
+addressed comment/literal preservation and connected `isSimpleExpression`.
+Regression coverage now includes non-mutating checks, recursive discovery,
+dry-run, file modes, symlinks, value preservation and idempotence. The subsequent simplification replaced manual token parsing with HCL source-range
+edits and added structural corpus and fuzz checks; see [architecture](architecture.md).
+
+
 The repository is compact and well organised, and `mise run check` passes.
 However, two serious data-preservation problems should be addressed before the
 tool is relied on broadly.

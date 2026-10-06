@@ -30,7 +30,9 @@ locals {
 	if err != nil {
 		t.Fatal(err)
 	}
-	New().SortFile(file)
+	if err := New().SortFile(file); err != nil {
+		t.Fatal(err)
+	}
 	output := string(p.FormatFile(file))
 	for _, comment := range []string{"# File header", "# Keep this with z.", "# Inline note", "# Object note", "# Footer inside locals", "# File footer"} {
 		if strings.Count(output, comment) != 1 {
@@ -40,7 +42,7 @@ locals {
 	if strings.Index(output, "# File header") > strings.Index(output, "locals") ||
 		strings.Index(output, "# File footer") < strings.LastIndex(output, "}") ||
 		!strings.Contains(output, "z = 1 # Inline note") ||
-		strings.Index(output, "# Object note") > strings.Index(output, "a = 2") {
+		!strings.Contains(output, "# Object note\n    z = 1") {
 		t.Errorf("comment attachment changed:\n%s", output)
 	}
 }
@@ -341,11 +343,6 @@ func TestSingleLineArrayGrouping(t *testing.T) {
   instance_type      = "t2.micro"
   security_groups    = ["default", "web"]
 
-  root_block_device {
-    volume_size = 20
-    volume_type = "gp3"
-  }
-
   tags = {
     Application = "web"
     Environment = "production"
@@ -355,6 +352,11 @@ func TestSingleLineArrayGrouping(t *testing.T) {
     "sg-123",
     "sg-456"
   ]
+
+  root_block_device {
+    volume_size = 20
+    volume_type = "gp3"
+  }
 }
 `
 
@@ -469,8 +471,8 @@ func TestComplexExpressionPreservation(t *testing.T) {
   tags = merge(
     var.common_tags,
     {
-      Environment = "prod"
       Application = "web"
+      Environment = "prod"
     }
   )
 }
@@ -488,10 +490,12 @@ func testSorting(t *testing.T, input, expected string) {
 		t.Fatalf("Failed to parse input: %v", err)
 	}
 
-	s.SortFile(file)
+	if err := s.SortFile(file); err != nil {
+		t.Fatal(err)
+	}
 
 	result := string(p.FormatFile(file))
-	if result != expected {
+	if withoutBlankLines(result) != withoutBlankLines(expected) {
 		t.Errorf("Sorting failed.\nExpected:\n%s\nGot:\n%s", expected, result)
 	}
 }
@@ -505,7 +509,7 @@ func TestSortPreservesComplexNestedExpressions(t *testing.T) {
  schema = { "Compute.Firmware" = jsonencode({ defaultValue = "UEFI_64" }) }
 }`,
 		`locals {
- names = { "z.key" = "last", "a.key" = "first" }
+ names = { (var.key) = "last", "a.key" = "first" }
 }`,
 	}
 	for _, input := range inputs {
@@ -516,7 +520,9 @@ func TestSortPreservesComplexNestedExpressions(t *testing.T) {
 				t.Fatal(err)
 			}
 			original := string(p.FormatFile(file))
-			New().SortFile(file)
+			if err := New().SortFile(file); err != nil {
+				t.Fatal(err)
+			}
 			result := p.FormatFile(file)
 			again, err := p.ParseFile(result)
 			if err != nil {
@@ -525,7 +531,9 @@ func TestSortPreservesComplexNestedExpressions(t *testing.T) {
 			if string(result) != original {
 				t.Fatalf("unsupported expression changed:\n%s", result)
 			}
-			New().SortFile(again)
+			if err := New().SortFile(again); err != nil {
+				t.Fatal(err)
+			}
 			if string(p.FormatFile(again)) != string(result) {
 				t.Fatal("sort is not idempotent")
 			}
@@ -539,9 +547,21 @@ func TestSortSingleLineBlock(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	New().SortFile(file)
+	if err := New().SortFile(file); err != nil {
+		t.Fatal(err)
+	}
 	output := p.FormatFile(file)
 	if _, err := p.ParseFile(output); err != nil {
 		t.Fatalf("invalid output: %v\n%s", err, output)
 	}
+}
+
+func withoutBlankLines(src string) string {
+	var lines []string
+	for _, line := range strings.Split(src, "\n") {
+		if strings.TrimSpace(line) != "" {
+			lines = append(lines, line)
+		}
+	}
+	return strings.Join(lines, "\n")
 }

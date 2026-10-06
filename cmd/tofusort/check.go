@@ -145,7 +145,7 @@ func checkDirectory(dir string, p *parser.Parser, s *sorter.Sorter) ([]string, e
 
 func checkFile(path string, p *parser.Parser, s *sorter.Sorter) (bool, error) {
 	if !isTerraformFile(path) {
-		return false, nil
+		return false, fmt.Errorf("unsupported file format: %s (expected .tf or .tfvars)", path)
 	}
 
 	content, err := os.ReadFile(path)
@@ -158,7 +158,9 @@ func checkFile(path string, p *parser.Parser, s *sorter.Sorter) (bool, error) {
 		return false, fmt.Errorf("failed to parse file: %w", err)
 	}
 
-	s.SortFile(file)
+	if err := s.SortFile(file); err != nil {
+		return false, err
+	}
 	newContent := p.FormatFile(file)
 
 	return string(content) != string(newContent), nil

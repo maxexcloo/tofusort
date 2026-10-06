@@ -1,80 +1,66 @@
-# Technical Design
+# Architecture
 
-## Overview
+`tofusort` uses HCL's parser to locate complete entries and its formatter to lay
+out the result. It does not implement an expression parser or scan for matching
+braces itself.
 
-Command-line tool for sorting OpenTofu/Terraform configuration files alphabetically using native HCL v2 parser integration.
+## Components
 
-## Core Components
+- `cmd/tofusort/`: Cobra commands, file discovery, aggregate errors, non-mutating
+  checks and dry-runs, and file replacement.
+- `internal/parser/`: `hclsyntax.ParseConfig` produces the syntax tree and
+  `LexConfig` identifies comments. A parsed file holds source bytes, its body and
+  lexer tokens. `hclwrite.Format` handles indentation and alignment; non-empty
+  output receives a final newline.
+- `internal/sorter/`: Sorting policy, source-range edits and preservation tests.
 
-### CLI Layer
+## Sorting
 
-- **Commands**: Main, sort, and check commands
-- **Entry Point**: Cobra-based command-line interface
-- **File Discovery**: Single file, directory, and recursive processing
-- **Output**: Dry-run mode and formatted output
+The sorter walks each body and expression. Literal-key object constructors are
+processed from the innermost outwards, including constructors in function
+arguments, comprehensions and type constraints. Source ranges identify whole
+key/value pairs, so operators, traversals, quoted keys and nested expressions do
+not need custom token parsing. Computed and duplicate keys prevent peer sorting.
+Objects inside string templates are left alone.
 
-### Parser Layer
+Body attributes use single-line and multiline value groups, then alphabetical
+names. Resource, data, module and provider bodies put `count` and `for_each`
+first and `depends_on` after ordinary attributes. Nested blocks follow attributes
+in their original order, including lifecycle, provisioner, validation, static and
+dynamic blocks. Root blocks use the documented type priority and labels; unknown
+root blocks are fixed boundaries. All equal sort keys retain source order.
 
-- **Comment Preservation**: Maintains all comments and expressions
-- **File Support**: HCL-format `.tf` and `.tfvars` files
-- **Format Cleanup**: Removes excessive syntactic blank lines while preserving literal and comment token contents
-- **HCL Integration**: Native `hclwrite` package for AST manipulation
+Same-line trailing comments and immediately preceding comment lines are attached
+to complete entries. Ambiguous comments between inline peers keep those peers
+in place. Detached comments delimit sortable runs. Whitespace and
+comments outside those runs stay in place. Inline objects use comma separators;
+multiline objects use newlines. HCL formats the resulting source.
 
-### Sorter Engine
+Edits operate on the original byte offsets. Replacing a parent range consumes
+its child edits. The complete output is reparsed both before and after formatting;
+the caller's parsed file changes only after success. Syntax validation prevents
+invalid output from being written, but is not a proof of semantic equivalence.
 
-- **Attribute Sorting**: Alphabetical with meta-argument priorities
-- **Block Sorting**: terraform → provider → variable → locals → data → resource → module → output
-- **Nested Sorting**: Recursive sorting; bodies with comments between entries and expressions containing comments retain their order; an AST check preserves quoted or computed keys and complex expressions
-- **Special Cases**: Validation and dynamic blocks with custom logic
+## Files & Errors
 
-## Data Flow
+Independent paths and files continue after a failure. `check` compares the
+original bytes with sorted output and never writes. Dry-run only reports paths.
+Writes resolve symbolic links and use a temporary sibling, preserve ordinary
+permission bits, sync and rename. Renaming creates a new inode, so hard links,
+ownership and extended metadata are not preserved.
 
-1. **Processing**: CLI command → File discovery → HCL parse → Sort → Format → Write output
-2. **Sorting**: Parse AST → Sort top-level blocks → Sort attributes → Sort nested blocks → Format → Return
-3. **Output**: Sorted AST → Cleanup formatting → Generate content → Write to file/stdout
+## Verification
 
-## Key Algorithms
+Tests cover explicit sorting results, comment attachment and section boundaries,
+quoted and computed keys, duplicate-key semantics, Unicode, heredocs, templates,
+functions, comprehensions, ordered blocks and non-mutating CLI behaviour.
 
-### Block Type Priority
+An independent structural comparison ignores source positions and permitted
+mapping order while retaining expression structure, values, arguments and nested
+block order. Every corpus and fuzz case checks this structure, comment contents,
+valid output and idempotence. Constant-expression regressions also compare
+actual evaluated values. `TOFUSORT_CORPUS` enables the same checks against a local
+HCL directory without copying its contents into the repository or modifying it.
 
-```go
-var blockTypeOrder = map[string]int{
-    "terraform": 0, "provider": 1, "variable": 2, "locals": 3,
-    "data": 4, "resource": 5, "module": 6, "output": 7,
-}
-```
-
-### Meta-Argument Priority
-
-```go
-var metaArgumentOrder = map[string]int{
-    "count": 0, "for_each": 1,
-    "depends_on": 998, "force_new": 999,
-    "lifecycle": 1000, "triggers_replace": 1001,
-}
-```
-
-### Special Block Handling
-
-- **Dynamic Blocks**: Sorted by label name, then `for_each` expression
-- **Multi-line Attributes**: Proper spacing with blank lines
-- **Validation Blocks**: Sorted by `error_message` content
-
-## Technology Stack
-
-### Core
-
-- **CLI**: Cobra framework for command-line interface
-- **Language**: Go with native HCL v2 parser
-- **Parser**: `github.com/hashicorp/hcl/v2` for AST manipulation
-- **Testing**: Go unit tests and integration tests
-
-### Dependencies
-
-- **CLI Framework**: Cobra for robust command-line handling
-- **File Operations**: Standard Go library for file system access
-- **HCL Parser**: Native integration with HashiCorp HCL v2
-
----
-
-_Technical architecture documentation for the tofusort project._
+Legacy sorting examples ignore blank-line differences; dedicated formatting and
+comment tests assert exact output. Run `mise run check` before handoff.

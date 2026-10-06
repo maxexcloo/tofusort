@@ -1,124 +1,91 @@
 # tofusort
 
-[![Licence](https://img.shields.io/badge/licence-AGPL--3.0-blue.svg)](LICENSE)
-[![Status](https://img.shields.io/badge/status-active-success)](https://img.shields.io/badge/status-active-success)
-[![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](Dockerfile)
-[![Go](https://img.shields.io/badge/go-blue.svg)](https://go.dev/)
-
-Sort OpenTofu and Terraform HCL configuration files using the native HCL v2
-parser.
-
-## Quick Start
-
-```bash
-mise install
-mise run build
-```
-
-## Features
-
-- **Attribute sorting**: Alphabetical within blocks, with meta-argument ordering
-- **Block sorting**: Alphabetical by type (terraform → provider → variable → locals → data → resource → module → output)
-- **Comment preservation**: Maintains all comments in their relative positions
-- **File support**: Handles HCL-format `.tf` and `.tfvars` files
-- **Nested sorting**: Recursive alphabetical sorting of supported nested structures
-- **Spacing management**: Automatic formatting with proper blank line handling
-
-Bodies with comments between entries retain their existing order to keep comments
-attached to the intended configuration. Expressions containing comments also
-retain their order. Uncommented child bodies and expressions are still sorted.
-Expressions with quoted or computed keys, comprehensions, and non-type function
-calls are preserved. Formatting preserves whitespace inside heredocs, string
-literals and comments.
-
-### Advanced Features
-
-- **Dynamic blocks**: Sorted by label name, then by `for_each` expression
-- **Meta-arguments**: `count`/`for_each` first; dependency and lifecycle fields last
-- **Multi-line attributes**: Proper spacing with blank lines
-- **Validation blocks**: Sorted by `error_message` content
-
-Visit `./tofusort --help` and start sorting your OpenTofu/Terraform files.
+Sort OpenTofu and Terraform HCL files with Go and the native HCL parser.
+Supports `.tf` and `.tfvars`; JSON configuration is not supported.
 
 ## Installation
 
-### Local Development
-
 ```bash
-git clone https://github.com/maxexcloo/tofusort.git
-cd tofusort
-
-# Install dependencies
 mise install
-
-# Build the binary
 mise run build
+./tofusort --help
 ```
 
-### Docker
+To install the binary into the configured Go binary directory, run
+`mise run install`.
+
+## Usage
+
+```bash
+# Sort a file or directory
+./tofusort sort main.tf
+
+# Sort directories recursively
+./tofusort sort -r ./modules
+
+# Report changes without writing
+./tofusort sort --dry-run main.tf
+
+# Check sorting and formatting without writing
+./tofusort check main.tf
+```
+
+Both commands accept multiple paths and continue after individual failures,
+reporting all errors with file context. `check` exits non-zero for unsorted,
+invalid or inaccessible inputs. Directory scans skip unsupported extensions;
+explicit unsupported file arguments produce errors. Use `--` before filenames
+that start with a dash.
+
+## Sorting Rules
+
+- **Attributes:** Single-line values first, then multiline values, alphabetical
+  within each group. In resource, data, module and provider bodies, `count` and
+  `for_each` lead; `depends_on` follows ordinary attributes. Nested blocks follow
+  attributes and retain their original order.
+- **Comments:** Immediately preceding comment lines and same-line trailing
+  comments stay with their entry. Ambiguous comments between inline peers keep
+  those peers in place. Detached section comments are boundaries:
+  entries on opposite sides are not mixed. File headers and footers separated
+  from entries by blank lines remain in place.
+- **Formatting:** HCL's formatter handles indentation and alignment. Inline
+  objects remain inline. The sorter separates attribute groups and blocks with
+  blank lines; it does not rewrite literal or template contents or run regular
+  expressions over source text.
+- **Objects:** Bare and quoted literal keys follow the same single-line-first
+  rule, including objects inside functions, comprehensions and type constraints.
+  Objects with computed or duplicate keys retain peer order; their independently
+  sortable child objects can still be sorted.
+- **Order preservation:** List elements, function arguments, nested blocks and
+  expressions inside string templates retain their order. Unknown top-level
+  block types remain fixed boundaries, so procedural constructs are not shuffled.
+- **Top-level blocks:** Recognised types follow `terraform`, `provider`,
+  `variable`, `locals`, `data`, `resource`, `module`, `output`, then alphabetical
+  labels within each type. Equal labels retain source order.
+
+Output is parsed again before any write. A temporary sibling file is written,
+flushed and renamed over the original; ordinary permission bits and symbolic
+links are preserved. Replacement creates a new inode and does not preserve
+hard links, ownership or extended metadata.
+
+## Docker
 
 ```bash
 docker build -t tofusort .
 docker run --rm -v "$(pwd):/workspace" -w /workspace tofusort sort main.tf
 ```
 
-## Usage
-
-### Basic Commands
+## Development
 
 ```bash
-# Check if files are sorted (CI mode)
-tofusort check main.tf
-
-# Preview changes (dry run)
-tofusort sort --dry-run main.tf
-
-# Sort a single file
-tofusort sort main.tf
-
-# Sort a directory recursively
-tofusort sort -r ./modules
-```
-
-### Development Commands
-
-```bash
-# Build binary
-mise run build
-
-# Run all checks
 mise run check
-
-# Development validation cycle
-mise run dev
-
-# Format and lint
 mise run fmt
-mise run lint
+
+# Exercise an external HCL corpus without modifying it
+TOFUSORT_CORPUS="$PWD/../homelab" mise exec -- go test ./internal/sorter -run TestExternalCorpus -v
+
+# Explore parser and sorting edge cases
+mise exec -- go test ./internal/sorter -run '^$' -fuzz FuzzSortPreservesStructure -fuzztime=30s
 ```
 
-## How It Works
-
-tofusort applies consistent sorting rules:
-
-- **Attributes**: Alphabetical with meta-argument priorities
-- **Block types**: terraform → provider → variable → locals → data → resource → module → output
-- **Spacing**: Automatic formatting with proper blank lines
-- **Special handling**: Validation and dynamic blocks have custom sort logic
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature-name`
-3. Make changes following the code standards in `AGENTS.md`
-4. Build and test: `mise run check`
-5. Submit a pull request
-
-## Documentation
-
-- **[AGENTS.md](AGENTS.md)**: Development standards and contribution guidelines
-- **[Architecture](docs/architecture.md)**: Technical design, components, and algorithms
-
----
-
-_A tool for maintaining consistently organised OpenTofu and Terraform configuration._
+Follow [AGENTS.md](AGENTS.md). See [architecture](docs/architecture.md) for the
+implementation and preservation tests. Licensed under [AGPL-3.0](LICENSE).
