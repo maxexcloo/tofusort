@@ -13,13 +13,13 @@ import (
 )
 
 var checkCmd = &cobra.Command{
-	Use:   "check [file or directory]",
+	Args:  cobra.MinimumNArgs(1),
+	RunE:  runCheck,
 	Short: "Check if OpenTofu/Terraform files are sorted",
+	Use:   "check [file or directory]",
 	Long: `Check if OpenTofu/Terraform configuration files are already sorted.
 Returns exit code 0 if all files are sorted, 1 if any files need sorting.
 Useful for CI/CD pipelines to enforce sorted configuration files.`,
-	Args: cobra.MinimumNArgs(1),
-	RunE: runCheck,
 }
 
 func init() {

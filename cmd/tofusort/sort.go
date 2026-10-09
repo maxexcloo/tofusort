@@ -14,22 +14,22 @@ import (
 )
 
 var (
-	recursive bool
 	dryRun    bool
+	recursive bool
 )
 
 var sortCmd = &cobra.Command{
-	Use:   "sort [file or directory]",
+	Args:  cobra.MinimumNArgs(1),
+	RunE:  runSort,
 	Short: "Sort OpenTofu/Terraform files alphabetically",
+	Use:   "sort [file or directory]",
 	Long: `Sort OpenTofu/Terraform configuration files alphabetically.
 Sorts blocks by type, then by name within type, and attributes within blocks.`,
-	Args: cobra.MinimumNArgs(1),
-	RunE: runSort,
 }
 
 func init() {
-	sortCmd.Flags().BoolVarP(&recursive, "recursive", "r", false, "Process directories recursively")
 	sortCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Show what would be changed without modifying files")
+	sortCmd.Flags().BoolVarP(&recursive, "recursive", "r", false, "Process directories recursively")
 	rootCmd.AddCommand(sortCmd)
 }
 

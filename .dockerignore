@@ -1,5 +1,5 @@
+.github/
 *.md
 .git*
-.github/
 .mise.toml
 renovate.json

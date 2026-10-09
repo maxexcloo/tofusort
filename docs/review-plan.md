@@ -8,14 +8,13 @@ Regression coverage now includes non-mutating checks, recursive discovery,
 dry-run, file modes, symlinks, value preservation and idempotence. The subsequent simplification replaced manual token parsing with HCL source-range
 edits and added structural corpus and fuzz checks; see [architecture](architecture.md).
 
-
 The repository is compact and well organised, and `mise run check` passes.
 However, two serious data-preservation problems should be addressed before the
 tool is relied on broadly.
 
 ## Findings
 
-### 1. High: formatting can change heredoc and template values
+### 1. High: Formatting Can Change Heredoc & Template Values
 
 `internal/parser/parser.go` runs regular expressions over the fully rendered
 source, including string and heredoc contents. Collapsing three or more
@@ -26,7 +25,7 @@ template.
 Blank-line cleanup should operate on HCL tokens or nodes, or be removed in
 favour of `hclwrite.Format`.
 
-### 2. High: comments are deleted or detached from their entries
+### 2. High: Comments Are Deleted or Detached From Their Entries
 
 `internal/sorter/sorter.go` clears the top-level body before reinserting
 blocks, deleting standalone file headers and comments between blocks.
@@ -40,7 +39,7 @@ This contradicts the project requirement and README claim that relative
 comment positions are preserved. It can also invalidate positional `tfsec`,
 Checkov, lint, or explanatory comments.
 
-### 3. Medium: ordered nested blocks can be reordered unsafely
+### 3. Medium: Ordered Nested Blocks Can Be Reordered Unsafely
 
 All regular nested blocks are sorted, while dynamic blocks receive additional
 content-based sorting. Some provider schemas treat repeated blocks as ordered
@@ -53,7 +52,7 @@ when the comparator considers entries equal.
 Ordered peers should be explicitly preserved, generally using stable sorting
 and a clear allowlist of unordered constructs.
 
-### 4. Medium: CLI errors are printed twice and include usage noise
+### 4. Medium: CLI Errors Are Printed Twice & Include Usage Noise
 
 Cobra prints `RunE` errors and usage by default, after which `main` prints the
 returned error again. Aggregated per-file errors can consequently appear
@@ -62,7 +61,7 @@ twice.
 Set `SilenceErrors` and `SilenceUsage` on the root command and let `main` own
 error presentation.
 
-### 5. Low: explicitly supplied unsupported files silently succeed
+### 5. Low: Explicitly Supplied Unsupported Files Silently Succeed
 
 The `sort` and `check` paths treat a directly supplied unsupported extension as
 successful. For example, checking a `.tf.json` file or a mistyped extension can
@@ -71,7 +70,7 @@ report that all files are sorted.
 Directory discovery may reasonably skip unsupported files, but explicit file
 arguments should return an unsupported-format error.
 
-## Simplification and Easy Improvements
+## Simplification & Easy Improvements
 
 - Reduce the more than 1,200 lines of hand-written token parsing in
   `internal/sorter/sorter.go`. Whitespace reconstruction accounts for much of

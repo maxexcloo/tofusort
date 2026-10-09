@@ -93,7 +93,7 @@ func TestCheckAndDryRunDoNotMutate(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			inputs := map[string]string{"invalid.tf": "invalid {", "unsorted.tfvars": "z = 1\na = 2\n", "ignored.json": "{}"}
+			inputs := map[string]string{"ignored.json": "{}", "invalid.tf": "invalid {", "unsorted.tfvars": "z = 1\na = 2\n"}
 			for name, input := range inputs {
 				if err := os.WriteFile(filepath.Join(dir, name), []byte(input), 0o600); err != nil {
 					t.Fatal(err)
