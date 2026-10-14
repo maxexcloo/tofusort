@@ -3,11 +3,11 @@ go = "1.27.2"
 golangci-lint = "2.14.0"
 
 [tasks.build]
-description = "Build the tofusort binary"
+description = "Build The Tofusort Binary"
 run = "go build -o tofusort ./cmd/tofusort"
 
 [tasks.check]
-description = "Run all checks"
+description = "Run All Checks"
 depends = ["lint", "test"]
 run = """
 unformatted="$(gofmt -l .)"
@@ -19,25 +19,25 @@ fi
 """
 
 [tasks.cleanup]
-description = "Clean build artefacts"
+description = "Clean Build Artefacts"
 run = "rm -f tofusort"
 
 [tasks.dev]
-description = "Development validation cycle"
+description = "Development Validation Cycle"
 depends = ["check"]
 
 [tasks.fmt]
-description = "Format Go code"
+description = "Format Go Code"
 run = "go fmt ./..."
 
 [tasks.install]
-description = "Install tofusort binary to GOPATH/bin"
+description = "Install The Tofusort Binary To GOPATH/bin"
 run = "go install ./cmd/tofusort"
 
 [tasks.lint]
-description = "Run linter"
+description = "Run Linter"
 run = "golangci-lint run ./..."
 
 [tasks.test]
-description = "Run all tests"
+description = "Run All Tests"
 run = "go test -v ./..."
