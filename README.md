@@ -92,19 +92,3 @@ mise exec -- go test ./internal/sorter -run '^$' -fuzz FuzzSortPreservesStructur
 
 Follow [AGENTS.md](AGENTS.md). See [architecture](docs/architecture.md) for the
 implementation and preservation tests. Licensed under [AGPL-3.0](LICENSE).
-
-## Dependency Updates
-
-Mise installs the pinned Updatecli CLI. Run `mise run dependencies:check` locally
-to preview updates from `.updatecli.d/`. GitHub authentication uses the existing
-`gh` login; credentials stay in the command process.
-
-Review compatibility and major upgrades separately, then apply a selected group:
-
-```sh
-mise run dependencies:update --labels group:tools
-```
-
-Use the groups declared in the policy, review the Git diff and run the project
-checks before committing or deploying. Updatecli changes local files; it does
-not create issues, pull requests, commits or deployments. Hosted Renovate is disabled.

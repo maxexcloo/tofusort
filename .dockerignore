@@ -3,5 +3,4 @@
 .git*
 .mise.toml
 /tofusort
-renovate.json
 .updatecli.d/

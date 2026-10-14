@@ -23,23 +23,6 @@ fi
 description = "Clean Build Artefacts"
 run = "rm -f tofusort"
 
-[tasks.fmt]
-description = "Format Go Code"
-run = "go fmt ./..."
-
-[tasks.install]
-description = "Install The Tofusort Binary To The Configured Go Binary Directory"
-run = "go install ./cmd/tofusort"
-
-[tasks.lint]
-description = "Run Go Vet"
-run = "go vet ./..."
-
-[tasks.test]
-description = "Run All Tests"
-run = "go test -v ./..."
-
-# Dependency Updates
 [tasks."dependencies:check"]
 description = "Preview Local Dependency Updates"
 run = """
@@ -60,3 +43,19 @@ if [ -n "${usage_labels:-}" ]; then
 fi
 updatecli pipeline apply --config .updatecli.d --disable-changelog --disable-udash-report --unique-tmp-dir "$@"
 """
+
+[tasks.fmt]
+description = "Format Go Code"
+run = "go fmt ./..."
+
+[tasks.install]
+description = "Install The Tofusort Binary To The Configured Go Binary Directory"
+run = "go install ./cmd/tofusort"
+
+[tasks.lint]
+description = "Run Go Vet"
+run = "go vet ./..."
+
+[tasks.test]
+description = "Run All Tests"
+run = "go test -v ./..."
