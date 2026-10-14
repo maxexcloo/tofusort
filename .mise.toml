@@ -1,9 +1,10 @@
 [tools]
+# gh = "latest"
+# updatecli = "latest"
 go = "1.27.2"
 updatecli = "0.122.1"
 
 # Dependency Updates
-
 [tasks."dependencies:check"]
 description = "Preview Local Dependency Updates"
 run = """
@@ -26,7 +27,6 @@ updatecli pipeline apply --config .updatecli.d --disable-changelog --disable-uda
 """
 
 # Development
-
 [tasks.build]
 description = "Build The Tofusort Binary"
 run = "go build -o tofusort ./cmd/tofusort"
