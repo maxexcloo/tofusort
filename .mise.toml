@@ -2,7 +2,6 @@
 # gh = "latest"
 # updatecli = "latest"
 go = "1.27.2"
-updatecli = "0.122.1"
 
 # Dependency Updates
 [tasks."dependencies:check"]
