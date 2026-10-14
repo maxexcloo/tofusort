@@ -2,26 +2,7 @@
 go = "1.27.2"
 updatecli = "0.122.1"
 
-[tasks.build]
-description = "Build The Tofusort Binary"
-run = "go build -o tofusort ./cmd/tofusort"
-
-[tasks.check]
-description = "Run All Checks"
-depends = ["lint", "test"]
-run = """
-updatecli manifest validate --config .updatecli.d --disable-templating --strict
-unformatted="$(gofmt -l .)"
-if [[ -n "$unformatted" ]]; then
-  echo "Files require gofmt:"
-  echo "$unformatted"
-  exit 1
-fi
-"""
-
-[tasks.cleanup]
-description = "Clean Build Artefacts"
-run = "rm -f tofusort"
+# Dependency Updates
 
 [tasks."dependencies:check"]
 description = "Preview Local Dependency Updates"
@@ -43,6 +24,29 @@ if [ -n "${usage_labels:-}" ]; then
 fi
 updatecli pipeline apply --config .updatecli.d --disable-changelog --disable-udash-report --unique-tmp-dir "$@"
 """
+
+# Development
+
+[tasks.build]
+description = "Build The Tofusort Binary"
+run = "go build -o tofusort ./cmd/tofusort"
+
+[tasks.check]
+description = "Run All Checks"
+depends = ["lint", "test"]
+run = """
+updatecli manifest validate --config .updatecli.d --disable-templating --strict
+unformatted="$(gofmt -l .)"
+if [[ -n "$unformatted" ]]; then
+  echo "Files require gofmt:"
+  echo "$unformatted"
+  exit 1
+fi
+"""
+
+[tasks.cleanup]
+description = "Clean Build Artefacts"
+run = "rm -f tofusort"
 
 [tasks.fmt]
 description = "Format Go Code"
