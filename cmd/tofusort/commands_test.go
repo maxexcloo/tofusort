@@ -6,9 +6,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/maxexcloo/tofusort/internal/parser"
-	"github.com/maxexcloo/tofusort/internal/sorter"
 )
 
 func TestIsTerraformFile(t *testing.T) {
@@ -27,29 +24,41 @@ func TestIsTerraformFile(t *testing.T) {
 	}
 }
 
-func TestProcessDirectoryContinuesAfterInvalidFile(t *testing.T) {
-	directory := t.TempDir()
-	invalidPath := filepath.Join(directory, "invalid.tf")
-	validPath := filepath.Join(directory, "valid.tf")
-	if err := os.WriteFile(invalidPath, []byte("invalid {"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(validPath, []byte("z = 1\na = 2\n"), 0o600); err != nil {
-		t.Fatal(err)
-	}
+func TestSortDirectoryContinuesAfterInvalidFile(t *testing.T) {
+	for _, recurse := range []bool{false, true} {
+		t.Run(fmt.Sprint(recurse), func(t *testing.T) {
+			recursive = recurse
+			dryRun = false
+			t.Cleanup(func() { recursive = false })
+			root := t.TempDir()
+			directory := root
+			if recurse {
+				directory = filepath.Join(root, "nested")
+				if err := os.Mkdir(directory, 0o700); err != nil {
+					t.Fatal(err)
+				}
+			}
+			invalidPath := filepath.Join(directory, "invalid.tf")
+			validPath := filepath.Join(directory, "valid.tf")
+			if err := os.WriteFile(invalidPath, []byte("invalid {"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(validPath, []byte("z = 1\na = 2\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
 
-	recursive = false
-	dryRun = false
-	err := processDirectory(directory, parser.New(), sorter.New())
-	if err == nil || !strings.Contains(err.Error(), "invalid.tf") {
-		t.Fatalf("processDirectory() error = %v, want invalid.tf context", err)
-	}
-	content, err := os.ReadFile(validPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(content) != "a = 2\nz = 1\n" {
-		t.Errorf("valid file was not processed after failure:\n%s", content)
+			err := runSort(nil, []string{root})
+			if err == nil || !strings.Contains(err.Error(), "invalid.tf") {
+				t.Fatalf("runSort() error = %v, want invalid.tf context", err)
+			}
+			content, err := os.ReadFile(validPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(content) != "a = 2\nz = 1\n" {
+				t.Errorf("valid file was not processed after failure:\n%s", content)
+			}
+		})
 	}
 }
 
@@ -134,7 +143,7 @@ func TestSortPreservesModeAndSymlink(t *testing.T) {
 	if err := os.Symlink("target.tf", link); err != nil {
 		t.Fatal(err)
 	}
-	if err := processFile(link, parser.New(), sorter.New()); err != nil {
+	if err := processFile(link); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Readlink(link); err != nil {

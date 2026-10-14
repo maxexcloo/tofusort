@@ -7,7 +7,8 @@ braces itself.
 ## Components
 
 - `cmd/tofusort/`: Cobra commands, file discovery, aggregate errors, non-mutating
-  checks and dry-runs, and file replacement.
+  checks and dry-runs, and file replacement. Both commands share file discovery
+  and the read, parse, sort and format path.
 - `internal/parser/`: `hclsyntax.ParseConfig` produces the syntax tree and
   `LexConfig` identifies comments. A parsed file holds source bytes, its body and
   lexer tokens. `hclwrite.Format` handles indentation and alignment; non-empty

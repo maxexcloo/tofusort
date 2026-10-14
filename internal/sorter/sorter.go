@@ -12,10 +12,6 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
-type Sorter struct{}
-
-func New() *Sorter { return &Sorter{} }
-
 var blockTypeOrder = map[string]int{
 	"terraform": 0, "provider": 1, "variable": 2, "locals": 3,
 	"data": 4, "resource": 5, "module": 6, "output": 7,
@@ -38,17 +34,16 @@ type document struct {
 	edits []edit
 }
 
-func (s *Sorter) SortFile(file *parser.File) error {
+func SortFile(file *parser.File) error {
 	d := &document{file: file}
 	d.body(file.Body, 0, len(file.Source), true, false)
 	output := d.render(0, len(file.Source))
-	p := parser.New()
-	sorted, err := p.ParseFile(output)
+	sorted, err := parser.ParseFile(output)
 	if err != nil {
 		return fmt.Errorf("sort produced invalid HCL; original file unchanged: %w", err)
 	}
-	formatted := p.FormatFile(sorted)
-	sorted, err = p.ParseFile(formatted)
+	formatted := parser.FormatFile(sorted)
+	sorted, err = parser.ParseFile(formatted)
 	if err != nil {
 		return fmt.Errorf("format produced invalid HCL; original file unchanged: %w", err)
 	}

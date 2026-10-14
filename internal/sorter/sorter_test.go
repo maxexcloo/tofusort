@@ -25,15 +25,14 @@ locals {
 
 # File footer
 `
-	p := parser.New()
-	file, err := p.ParseFile([]byte(input))
+	file, err := parser.ParseFile([]byte(input))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := New().SortFile(file); err != nil {
+	if err := SortFile(file); err != nil {
 		t.Fatal(err)
 	}
-	output := string(p.FormatFile(file))
+	output := string(parser.FormatFile(file))
 	for _, comment := range []string{"# File header", "# Keep this with z.", "# Inline note", "# Object note", "# Footer inside locals", "# File footer"} {
 		if strings.Count(output, comment) != 1 {
 			t.Errorf("comment %q was lost or duplicated:\n%s", comment, output)
@@ -482,19 +481,16 @@ func TestComplexExpressionPreservation(t *testing.T) {
 }
 
 func testSorting(t *testing.T, input, expected string) {
-	p := parser.New()
-	s := New()
-
-	file, err := p.ParseFile([]byte(input))
+	file, err := parser.ParseFile([]byte(input))
 	if err != nil {
 		t.Fatalf("Failed to parse input: %v", err)
 	}
 
-	if err := s.SortFile(file); err != nil {
+	if err := SortFile(file); err != nil {
 		t.Fatal(err)
 	}
 
-	result := string(p.FormatFile(file))
+	result := string(parser.FormatFile(file))
 	if withoutBlankLines(result) != withoutBlankLines(expected) {
 		t.Errorf("Sorting failed.\nExpected:\n%s\nGot:\n%s", expected, result)
 	}
@@ -514,27 +510,26 @@ func TestSortPreservesComplexNestedExpressions(t *testing.T) {
 	}
 	for _, input := range inputs {
 		t.Run(input, func(t *testing.T) {
-			p := parser.New()
-			file, err := p.ParseFile([]byte(input))
+			file, err := parser.ParseFile([]byte(input))
 			if err != nil {
 				t.Fatal(err)
 			}
-			original := string(p.FormatFile(file))
-			if err := New().SortFile(file); err != nil {
+			original := string(parser.FormatFile(file))
+			if err := SortFile(file); err != nil {
 				t.Fatal(err)
 			}
-			result := p.FormatFile(file)
-			again, err := p.ParseFile(result)
+			result := parser.FormatFile(file)
+			again, err := parser.ParseFile(result)
 			if err != nil {
 				t.Fatalf("sort produced invalid HCL: %v\n%s", err, result)
 			}
 			if string(result) != original {
 				t.Fatalf("unsupported expression changed:\n%s", result)
 			}
-			if err := New().SortFile(again); err != nil {
+			if err := SortFile(again); err != nil {
 				t.Fatal(err)
 			}
-			if string(p.FormatFile(again)) != string(result) {
+			if string(parser.FormatFile(again)) != string(result) {
 				t.Fatal("sort is not idempotent")
 			}
 		})
@@ -542,16 +537,15 @@ func TestSortPreservesComplexNestedExpressions(t *testing.T) {
 }
 
 func TestSortSingleLineBlock(t *testing.T) {
-	p := parser.New()
-	file, err := p.ParseFile([]byte(`locals { name = "value" }`))
+	file, err := parser.ParseFile([]byte(`locals { name = "value" }`))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := New().SortFile(file); err != nil {
+	if err := SortFile(file); err != nil {
 		t.Fatal(err)
 	}
-	output := p.FormatFile(file)
-	if _, err := p.ParseFile(output); err != nil {
+	output := parser.FormatFile(file)
+	if _, err := parser.ParseFile(output); err != nil {
 		t.Fatalf("invalid output: %v\n%s", err, output)
 	}
 }

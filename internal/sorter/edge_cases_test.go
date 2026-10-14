@@ -18,27 +18,26 @@ import (
 
 func verifyPreservation(t testing.TB, input []byte) []byte {
 	t.Helper()
-	p := parser.New()
-	file, err := p.ParseFile(input)
+	file, err := parser.ParseFile(input)
 	if err != nil {
 		t.Fatal(err)
 	}
 	before := bodySignature(file.Body, true)
 	comments := commentSignature(file)
-	if err := New().SortFile(file); err != nil {
+	if err := SortFile(file); err != nil {
 		t.Fatal(err)
 	}
-	output := p.FormatFile(file)
+	output := parser.FormatFile(file)
 	if got := bodySignature(file.Body, true); got != before {
 		t.Fatalf("configuration meaning changed\nbefore: %s\nafter: %s", before, got)
 	}
 	if got := commentSignature(file); got != comments {
 		t.Fatalf("comments changed: %s != %s", got, comments)
 	}
-	if err := New().SortFile(file); err != nil {
+	if err := SortFile(file); err != nil {
 		t.Fatal(err)
 	}
-	if again := p.FormatFile(file); !bytes.Equal(again, output) {
+	if again := parser.FormatFile(file); !bytes.Equal(again, output) {
 		t.Fatalf("not idempotent:\n%s\nthen:\n%s", output, again)
 	}
 	return output
@@ -226,7 +225,7 @@ func FuzzSortPreservesStructure(f *testing.F) {
 		if len(src) > 100000 {
 			t.Skip()
 		}
-		if _, err := parser.New().ParseFile([]byte(src)); err != nil {
+		if _, err := parser.ParseFile([]byte(src)); err != nil {
 			t.Skip()
 		}
 		verifyPreservation(t, []byte(src))
@@ -302,11 +301,11 @@ func TestSortObjectsInsideExpressions(t *testing.T) {
 	for _, pair := range cases {
 		t.Run(pair[0], func(t *testing.T) {
 			output := verifyPreservation(t, []byte(pair[0]))
-			expected, err := parser.New().ParseFile([]byte(pair[1]))
+			expected, err := parser.ParseFile([]byte(pair[1]))
 			if err != nil {
 				t.Fatal(err)
 			}
-			if !bytes.Equal(output, parser.New().FormatFile(expected)) {
+			if !bytes.Equal(output, parser.FormatFile(expected)) {
 				t.Fatalf("unexpected output:\n%s", output)
 			}
 		})

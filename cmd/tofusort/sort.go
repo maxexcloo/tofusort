@@ -1,15 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
 
-	"github.com/maxexcloo/tofusort/internal/parser"
-	"github.com/maxexcloo/tofusort/internal/sorter"
 	"github.com/spf13/cobra"
 )
 
@@ -34,12 +31,10 @@ func init() {
 }
 
 func runSort(cmd *cobra.Command, args []string) error {
-	p := parser.New()
-	s := sorter.New()
 	var errs []error
 
 	for _, path := range args {
-		if err := processPath(path, p, s); err != nil {
+		if err := visitPath(path, "process", processFile); err != nil {
 			errs = append(errs, fmt.Errorf("failed to process %s: %w", path, err))
 		}
 	}
@@ -47,97 +42,20 @@ func runSort(cmd *cobra.Command, args []string) error {
 	return errors.Join(errs...)
 }
 
-func processPath(path string, p *parser.Parser, s *sorter.Sorter) error {
-	info, err := os.Stat(path)
+func processFile(path string) error {
+	content, newContent, err := sortedContent(path)
 	if err != nil {
-		return fmt.Errorf("failed to stat path: %w", err)
-	}
-
-	if info.IsDir() {
-		return processDirectory(path, p, s)
-	}
-
-	return processFile(path, p, s)
-}
-
-func processDirectory(dir string, p *parser.Parser, s *sorter.Sorter) error {
-	var errs []error
-
-	if recursive {
-		walkErr := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
-			if err != nil {
-				errs = append(errs, fmt.Errorf("failed to access %s: %w", path, err))
-				return nil
-			}
-
-			if d.IsDir() {
-				return nil
-			}
-
-			if isTerraformFile(path) {
-				if err := processFile(path, p, s); err != nil {
-					errs = append(errs, fmt.Errorf("failed to process %s: %w", path, err))
-				}
-			}
-
-			return nil
-		})
-		if walkErr != nil {
-			errs = append(errs, walkErr)
-		}
-		return errors.Join(errs...)
-	}
-
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return fmt.Errorf("failed to read directory: %w", err)
-	}
-
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-
-		path := filepath.Join(dir, entry.Name())
-		if isTerraformFile(path) {
-			if err := processFile(path, p, s); err != nil {
-				errs = append(errs, fmt.Errorf("failed to process %s: %w", path, err))
-			}
-		}
-	}
-
-	return errors.Join(errs...)
-}
-
-func processFile(path string, p *parser.Parser, s *sorter.Sorter) error {
-	if !isTerraformFile(path) {
-		return fmt.Errorf("unsupported file format: %s (expected .tf or .tfvars)", path)
-	}
-
-	content, err := os.ReadFile(path)
-	if err != nil {
-		return fmt.Errorf("failed to read file: %w", err)
-	}
-
-	file, err := p.ParseFile(content)
-	if err != nil {
-		return fmt.Errorf("failed to parse file: %w", err)
-	}
-
-	if err := s.SortFile(file); err != nil {
 		return err
 	}
 
-	newContent := p.FormatFile(file)
-
 	if dryRun {
-		if string(content) != string(newContent) {
+		if !bytes.Equal(content, newContent) {
 			fmt.Printf("Would modify: %s\n", path)
 		}
 		return nil
 	}
 
-	if string(content) != string(newContent) {
+	if !bytes.Equal(content, newContent) {
 		if err := replaceFile(path, newContent); err != nil {
 			return fmt.Errorf("failed to write file: %w", err)
 		}
@@ -178,9 +96,4 @@ func replaceFile(path string, content []byte) error {
 		return err
 	}
 	return os.Rename(temp.Name(), target)
-}
-
-func isTerraformFile(path string) bool {
-	ext := strings.ToLower(filepath.Ext(path))
-	return ext == ".tf" || ext == ".tfvars"
 }

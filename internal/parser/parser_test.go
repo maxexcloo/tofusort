@@ -24,12 +24,11 @@ last */
 
 other = 1
 `
-	p := New()
-	file, err := p.ParseFile([]byte(input))
+	file, err := ParseFile([]byte(input))
 	if err != nil {
 		t.Fatal(err)
 	}
-	output := string(p.FormatFile(file))
+	output := string(FormatFile(file))
 	for _, literal := range []string{"first\n\n\n{\n\n  content\n}\n", "/* first\n\n\nlast */"} {
 		if !strings.Contains(output, literal) {
 			t.Errorf("formatting changed literal or comment %q:\n%s", literal, output)

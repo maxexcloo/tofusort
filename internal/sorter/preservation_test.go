@@ -23,15 +23,14 @@ func TestSortPreservesValues(t *testing.T) {
 	}
 	for _, input := range inputs {
 		t.Run(input, func(t *testing.T) {
-			p := parser.New()
-			file, err := p.ParseFile([]byte(input))
+			file, err := parser.ParseFile([]byte(input))
 			if err != nil {
 				t.Fatal(err)
 			}
-			if err := New().SortFile(file); err != nil {
+			if err := SortFile(file); err != nil {
 				t.Fatal(err)
 			}
-			output := p.FormatFile(file)
+			output := parser.FormatFile(file)
 			before, d := hclsyntax.ParseConfig([]byte(input), "input.tfvars", hcl.InitialPos)
 			if d.HasErrors() {
 				t.Fatal(d)
@@ -51,14 +50,14 @@ func TestSortPreservesValues(t *testing.T) {
 			if !want.RawEquals(got) {
 				t.Fatalf("value changed:\n%s", output)
 			}
-			again, err := p.ParseFile(output)
+			again, err := parser.ParseFile(output)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if err := New().SortFile(again); err != nil {
+			if err := SortFile(again); err != nil {
 				t.Fatal(err)
 			}
-			if second := p.FormatFile(again); !bytes.Equal(output, second) {
+			if second := parser.FormatFile(again); !bytes.Equal(output, second) {
 				t.Fatalf("not idempotent:\n%s\nthen:\n%s", output, second)
 			}
 		})
@@ -80,19 +79,18 @@ func TestSortPreservesNestedBlockOrder(t *testing.T) {
   provisioner "remote-exec" { inline = ["second"] }
 }
 `
-	p := parser.New()
-	file, err := p.ParseFile([]byte(input))
+	file, err := parser.ParseFile([]byte(input))
 	if err != nil {
 		t.Fatal(err)
 	}
 	blocks := file.Body.Blocks[0].Body.Blocks
-	if err := New().SortFile(file); err != nil {
+	if err := SortFile(file); err != nil {
 		t.Fatal(err)
 	}
 	got := file.Body.Blocks[0].Body.Blocks
 	for i := range blocks {
 		if got[i].Type != blocks[i].Type || strings.Join(got[i].Labels, "\x00") != strings.Join(blocks[i].Labels, "\x00") {
-			t.Fatalf("nested blocks reordered:\n%s", p.FormatFile(file))
+			t.Fatalf("nested blocks reordered:\n%s", parser.FormatFile(file))
 		}
 	}
 }
