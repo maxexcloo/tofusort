@@ -1,6 +1,7 @@
 name: Container
 
 on:
+  pull_request:
   workflow_dispatch:
   push:
     branches:
@@ -19,8 +20,26 @@ env:
   IMAGE_NAME: ghcr.io/${{ github.repository }}
 
 jobs:
+  check:
+    name: Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Set Up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - name: Test
+        run: go test ./...
+      - name: Vet
+        run: go vet ./...
+
   build:
     name: Build Image
+    needs: check
     runs-on: ubuntu-latest
     permissions:
       contents: read
