@@ -94,4 +94,4 @@ Follow [AGENTS.md](AGENTS.md). See [architecture](docs/architecture.md) for the
 implementation and preservation tests. Licensed under [AGPL-3.0](LICENSE).
 
 The Container workflow publishes AMD64 and ARM64 images after merging to `main`
-or pushing a version tag. Pull requests provide source review; local checks remain optional.
+or pushing a version tag. Pull requests run Go tests, vet and image builds without publishing.
