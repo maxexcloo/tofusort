@@ -1,18 +1,13 @@
 [tools]
-# gh = "latest"
-# updatecli = "latest"
 go = "1.27.2"
 
 # Development
 [tasks.build]
-description = "Build The Tofusort Binary"
 run = "go build -o tofusort ./cmd/tofusort"
 
 [tasks.check]
-description = "Run All Checks"
-depends = ["lint", "test"]
+depends = ["check:actions", "check:updates", "lint", "test"]
 run = """
-updatecli manifest validate --config .updatecli.d --disable-templating --strict
 unformatted="$(gofmt -l .)"
 if [[ -n "$unformatted" ]]; then
   echo "Files require gofmt:"
@@ -22,21 +17,16 @@ fi
 """
 
 [tasks.cleanup]
-description = "Clean Build Artefacts"
 run = "rm -f tofusort"
 
 [tasks.fmt]
-description = "Format Go Code"
 run = "go fmt ./..."
 
 [tasks.install]
-description = "Install The Tofusort Binary To The Configured Go Binary Directory"
 run = "go install ./cmd/tofusort"
 
 [tasks.lint]
-description = "Run Go Vet"
 run = "go vet ./..."
 
 [tasks.test]
-description = "Run All Tests"
 run = "go test -v ./..."

@@ -49,14 +49,10 @@ jobs:
             fi
           fi
           echo "image=$image" >> "$GITHUB_OUTPUT"
-      - name: Set Up Go
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-      - name: Test
-        run: go test ./...
-      - name: Vet
-        run: go vet ./...
+      - name: Set Up Shared Tools & Tasks
+        uses: maxexcloo/dotfiles/.github/actions/mise@main
+      - name: Run Checks
+        run: mise run check
 
   build:
     name: Build Image

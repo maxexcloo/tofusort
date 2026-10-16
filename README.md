@@ -76,6 +76,9 @@ docker run --rm -v "$(pwd):/workspace" -w /workspace tofusort sort main.tf
 
 ## Development
 
+Install the [shared Mise configuration](https://github.com/maxexcloo/dotfiles#shared-tools--tasks)
+before running local Mise tasks.
+
 `mise run check` runs Go vet, tests, gofmt verification and Updatecli manifest
 validation.
 

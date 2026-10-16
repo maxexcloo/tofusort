@@ -1,6 +1,5 @@
-.github/
 *.md
 .git*
 .mise.toml
-/tofusort
 .updatecli.d/
+/tofusort
