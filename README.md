@@ -28,13 +28,18 @@ To install the binary into the configured Go binary directory, run
 
 # Check sorting and formatting without writing
 ./tofusort check main.tf
+
+# Put type, name and id first in list-item objects
+./tofusort sort --identifiers-first main.tf
+./tofusort check --identifiers-first main.tf
 ```
 
 Both commands accept multiple paths and continue after individual failures,
 reporting all errors with file context. `check` exits non-zero for unsorted,
 invalid or inaccessible inputs. Directory scans skip unsupported extensions;
 explicit unsupported file arguments produce errors. Use `--` before filenames
-that start with a dash.
+that start with a dash. Explicit directory symlinks are followed, including with
+`--recursive`; directory symlinks encountered during a scan are not traversed.
 
 ## Sorting Rules
 
@@ -54,7 +59,10 @@ that start with a dash.
 - **Objects:** Bare and quoted literal keys follow the same single-line-first
   rule, including objects inside functions, comprehensions and type constraints.
   Objects with computed or duplicate keys retain peer order; their independently
-  sortable child objects can still be sorted.
+  sortable child objects can still be sorted. With `--identifiers-first`, objects
+  directly inside list literals put `type`, `name`, then `id` before other keys,
+  regardless of value layout. Other object keys keep their usual grouping.
+  Comment boundaries and list-element order are preserved.
 - **Order preservation:** List elements, function arguments, nested blocks and
   expressions inside string templates retain their order. Unknown top-level
   block types remain fixed boundaries, so procedural constructs are not shuffled.

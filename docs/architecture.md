@@ -24,6 +24,12 @@ key/value pairs, so operators, traversals, quoted keys and nested expressions do
 not need custom token parsing. Computed and duplicate keys prevent peer sorting.
 Objects inside string templates are left alone.
 
+Both commands share the opt-in `--identifiers-first` policy. It gives `type`,
+`name`, then `id` precedence in objects directly inside list literals, including
+parenthesised objects. Other objects use the default policy. Identifier precedence
+applies before single-line and multiline grouping and respects comment boundaries,
+computed keys and duplicate keys. List elements retain their original order.
+
 Body attributes use single-line and multiline value groups, then alphabetical
 names. Resource, data, module and provider bodies put `count` and `for_each`
 first and `depends_on` after ordinary attributes. Nested blocks follow attributes
@@ -35,7 +41,9 @@ Same-line trailing comments and immediately preceding comment lines are attached
 to complete entries. Ambiguous comments between inline peers keep those peers
 in place. Detached comments delimit sortable runs. Whitespace and
 comments outside those runs stay in place. Inline objects use comma separators;
-multiline objects use newlines. HCL formats the resulting source.
+multiline objects use newlines. Comment attachment searches the token stream for
+adjacent gaps rather than scanning the whole file for each entry. HCL formats
+the resulting source once, within the sorter.
 
 Edits operate on the original byte offsets. Replacing a parent range consumes
 its child edits. The complete output is reparsed both before and after formatting;
@@ -46,6 +54,8 @@ invalid output from being written, but is not a proof of semantic equivalence.
 
 Independent paths and files continue after a failure. `check` compares the
 original bytes with sorted output and never writes. Dry-run only reports paths.
+Explicit directory symlinks are followed for both shallow and recursive scans;
+directory symlinks encountered below the supplied root are not traversed.
 Writes resolve symbolic links and use a temporary sibling, preserve ordinary
 permission bits, sync and rename. Renaming creates a new inode, so hard links,
 ownership and extended metadata are not preserved.

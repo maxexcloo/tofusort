@@ -12,7 +12,7 @@
 
 - Follow Go naming and formatting conventions.
 - Keep comments minimal and specific to non-obvious parser or sorting behaviour.
-- Preserve relative comment positions when sorting HCL.
+- Keep attached comments with their entries and preserve detached comment boundaries.
 - Update `README.md` and `docs/architecture.md` when behaviour changes.
 
 ## Behaviour

@@ -29,7 +29,7 @@ locals {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := SortFile(file); err != nil {
+	if err := SortFile(file, Options{}); err != nil {
 		t.Fatal(err)
 	}
 	output := string(parser.FormatFile(file))
@@ -486,7 +486,7 @@ func testSorting(t *testing.T, input, expected string) {
 		t.Fatalf("Failed to parse input: %v", err)
 	}
 
-	if err := SortFile(file); err != nil {
+	if err := SortFile(file, Options{}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -515,7 +515,7 @@ func TestSortPreservesComplexNestedExpressions(t *testing.T) {
 				t.Fatal(err)
 			}
 			original := string(parser.FormatFile(file))
-			if err := SortFile(file); err != nil {
+			if err := SortFile(file, Options{}); err != nil {
 				t.Fatal(err)
 			}
 			result := parser.FormatFile(file)
@@ -526,7 +526,7 @@ func TestSortPreservesComplexNestedExpressions(t *testing.T) {
 			if string(result) != original {
 				t.Fatalf("unsupported expression changed:\n%s", result)
 			}
-			if err := SortFile(again); err != nil {
+			if err := SortFile(again, Options{}); err != nil {
 				t.Fatal(err)
 			}
 			if string(parser.FormatFile(again)) != string(result) {
@@ -541,7 +541,7 @@ func TestSortSingleLineBlock(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := SortFile(file); err != nil {
+	if err := SortFile(file, Options{}); err != nil {
 		t.Fatal(err)
 	}
 	output := parser.FormatFile(file)

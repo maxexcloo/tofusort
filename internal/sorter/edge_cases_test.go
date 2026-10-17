@@ -16,7 +16,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
-func verifyPreservation(t testing.TB, input []byte) []byte {
+func verifyPreservation(t testing.TB, input []byte, options Options) []byte {
 	t.Helper()
 	file, err := parser.ParseFile(input)
 	if err != nil {
@@ -24,7 +24,7 @@ func verifyPreservation(t testing.TB, input []byte) []byte {
 	}
 	before := bodySignature(file.Body, true)
 	comments := commentSignature(file)
-	if err := SortFile(file); err != nil {
+	if err := SortFile(file, options); err != nil {
 		t.Fatal(err)
 	}
 	output := parser.FormatFile(file)
@@ -34,7 +34,7 @@ func verifyPreservation(t testing.TB, input []byte) []byte {
 	if got := commentSignature(file); got != comments {
 		t.Fatalf("comments changed: %s != %s", got, comments)
 	}
-	if err := SortFile(file); err != nil {
+	if err := SortFile(file, options); err != nil {
 		t.Fatal(err)
 	}
 	if again := parser.FormatFile(file); !bytes.Equal(again, output) {
@@ -177,7 +177,88 @@ func TestEdgeCases(t *testing.T) {
 		"z=1\r\na=2\r\n",
 	}
 	for i, input := range cases {
-		t.Run(fmt.Sprint(i), func(t *testing.T) { verifyPreservation(t, []byte(input)) })
+		t.Run(fmt.Sprint(i), func(t *testing.T) { verifyPreservation(t, []byte(input), Options{}) })
+	}
+}
+
+func TestIdentifiersFirst(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		want    string
+		options Options
+	}{
+		{
+			name:  "default",
+			input: `items = [{ type = "t", name = "n", id = 3, a = 1 }]`,
+			want:  `items = [{ a = 1, id = 3, name = "n", type = "t" }]`,
+		},
+		{
+			name:    "list order and quoted keys",
+			input:   `items = [{ a = 1, id = 3, name = "n", "type" = "t" }, { a = 2, name = "m" }]`,
+			want:    `items = [{ "type" = "t", name = "n", id = 3, a = 1 }, { name = "m", a = 2 }]`,
+			options: Options{IdentifiersFirst: true},
+		},
+		{
+			name:    "parenthesised object",
+			input:   `items = [({ a = 1, name = "n", type = "t" })]`,
+			want:    `items = [({ type = "t", name = "n", a = 1 })]`,
+			options: Options{IdentifiersFirst: true},
+		},
+		{
+			name:    "ordinary objects keep default policy",
+			input:   `items = { type = "t", name = "n", id = 3, a = 1 }`,
+			want:    `items = { a = 1, id = 3, name = "n", type = "t" }`,
+			options: Options{IdentifiersFirst: true},
+		},
+		{
+			name:    "nested object keeps default policy",
+			input:   `items = [{ a = { type = "t", name = "n", id = 3, a = 1 }, name = "outer" }]`,
+			want:    `items = [{ name = "outer", a = { a = 1, id = 3, name = "n", type = "t" } }]`,
+			options: Options{IdentifiersFirst: true},
+		},
+		{
+			name:    "duplicate keys retain peer order",
+			input:   `items = [{ a = 1, name = "n", type = "t", a = 2 }]`,
+			want:    `items = [{ a = 1, name = "n", type = "t", a = 2 }]`,
+			options: Options{IdentifiersFirst: true},
+		},
+		{
+			name:    "computed keys retain peer order",
+			input:   `items = [{ (var.key) = 1, name = "n", type = "t" }]`,
+			want:    `items = [{ (var.key) = 1, name = "n", type = "t" }]`,
+			options: Options{IdentifiersFirst: true},
+		},
+		{
+			name:    "comment attachment",
+			input:   "items = [{\n# A\na = 1\n# Name\nname = \"n\" # trailing\n# Type\ntype = \"t\"\n}]",
+			want:    "items = [{\n# Type\ntype = \"t\"\n# Name\nname = \"n\" # trailing\n# A\na = 1\n}]",
+			options: Options{IdentifiersFirst: true},
+		},
+		{
+			name:    "detached comment boundary",
+			input:   "items = [{\nid = 3\n\n# Section\n\nname = \"n\"\ntype = \"t\"\na = 1\n}]",
+			want:    "items = [{\nid = 3\n\n# Section\n\ntype = \"t\"\nname = \"n\"\na = 1\n}]",
+			options: Options{IdentifiersFirst: true},
+		},
+		{
+			name:    "multiline identifier precedes ordinary values",
+			input:   "items = [{\na = 1\nid = 3\nname = <<EOT\nname\nEOT\ntype = \"t\"\n}]",
+			want:    "items = [{\ntype = \"t\"\nname = <<EOT\nname\nEOT\nid = 3\na = 1\n}]",
+			options: Options{IdentifiersFirst: true},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			output := verifyPreservation(t, []byte(tt.input), tt.options)
+			want, err := parser.ParseFile([]byte(tt.want))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(output, parser.FormatFile(want)) {
+				t.Fatalf("unexpected order:\n%s\nwant:\n%s", output, parser.FormatFile(want))
+			}
+		})
 	}
 }
 
@@ -205,7 +286,7 @@ func TestExternalCorpus(t *testing.T) {
 			return err
 		}
 		count++
-		t.Run(filepath.Base(path), func(t *testing.T) { verifyPreservation(t, input) })
+		t.Run(filepath.Base(path), func(t *testing.T) { verifyPreservation(t, input, Options{}) })
 		return nil
 	})
 	if err != nil {
@@ -215,6 +296,27 @@ func TestExternalCorpus(t *testing.T) {
 		t.Fatal("corpus contained no HCL files")
 	}
 	t.Logf("verified %d files without modifying the corpus", count)
+}
+
+func BenchmarkSortFlatAttributes(b *testing.B) {
+	for _, count := range []int{2000, 4000, 8000} {
+		var input strings.Builder
+		for i := count; i > 0; i-- {
+			fmt.Fprintf(&input, "attribute_%05d = %d\n", i, i)
+		}
+		source := []byte(input.String())
+		b.Run(fmt.Sprint(count), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				file, err := parser.ParseFile(source)
+				if err != nil {
+					b.Fatal(err)
+				}
+				if err := SortFile(file, Options{}); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
 }
 
 func FuzzSortPreservesStructure(f *testing.F) {
@@ -228,7 +330,8 @@ func FuzzSortPreservesStructure(f *testing.F) {
 		if _, err := parser.ParseFile([]byte(src)); err != nil {
 			t.Skip()
 		}
-		verifyPreservation(t, []byte(src))
+		verifyPreservation(t, []byte(src), Options{})
+		verifyPreservation(t, []byte(src), Options{IdentifiersFirst: true})
 	})
 }
 
@@ -273,7 +376,7 @@ locals {
 
 # File footer
 `
-	output := verifyPreservation(t, []byte(input))
+	output := verifyPreservation(t, []byte(input), Options{})
 	if string(output) != expected {
 		t.Fatalf("unexpected sorting:\n%s", output)
 	}
@@ -281,7 +384,7 @@ locals {
 
 func TestDetachedCommentsAreBoundaries(t *testing.T) {
 	input := "z=1\ny=2\n\n# Next section\n\nb=3\na=4\n"
-	output := verifyPreservation(t, []byte(input))
+	output := verifyPreservation(t, []byte(input), Options{})
 	expected := "y = 2\nz = 1\n\n# Next section\n\na = 4\nb = 3\n"
 	if string(output) != expected {
 		t.Fatalf("section boundary changed:\n%s", output)
@@ -300,7 +403,7 @@ func TestSortObjectsInsideExpressions(t *testing.T) {
 	}
 	for _, pair := range cases {
 		t.Run(pair[0], func(t *testing.T) {
-			output := verifyPreservation(t, []byte(pair[0]))
+			output := verifyPreservation(t, []byte(pair[0]), Options{})
 			expected, err := parser.ParseFile([]byte(pair[1]))
 			if err != nil {
 				t.Fatal(err)
@@ -315,7 +418,7 @@ func TestSortObjectsInsideExpressions(t *testing.T) {
 func TestInlineCommentDoesNotCaptureNextComment(t *testing.T) {
 	input := "z = 1 # Z inline\n# A note\na = 2\n"
 	expected := "# A note\na = 2\nz = 1 # Z inline\n"
-	output := verifyPreservation(t, []byte(input))
+	output := verifyPreservation(t, []byte(input), Options{})
 	if string(output) != expected {
 		t.Fatalf("comment attached to wrong entry:\n%s", output)
 	}
@@ -323,7 +426,7 @@ func TestInlineCommentDoesNotCaptureNextComment(t *testing.T) {
 
 func TestAmbiguousInlineCommentKeepsPeerOrder(t *testing.T) {
 	input := "x = { z = 1, /* between peers */ a = 2 }\n"
-	output := verifyPreservation(t, []byte(input))
+	output := verifyPreservation(t, []byte(input), Options{})
 	if string(output) != input {
 		t.Fatalf("ambiguous comment moved:\n%s", output)
 	}

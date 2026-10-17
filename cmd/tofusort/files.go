@@ -12,6 +12,8 @@ import (
 	"github.com/maxexcloo/tofusort/internal/sorter"
 )
 
+var sortOptions sorter.Options
+
 func visitPath(path, action string, visit func(string) error) error {
 	info, err := os.Stat(path)
 	if err != nil {
@@ -34,7 +36,12 @@ func visitDirectory(dir, action string, visit func(string) error) error {
 	}
 
 	if recursive {
-		err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		// WalkDir does not follow even an explicitly supplied directory symlink.
+		target, err := filepath.EvalSymlinks(dir)
+		if err != nil {
+			return fmt.Errorf("failed to resolve directory: %w", err)
+		}
+		err = filepath.WalkDir(target, func(path string, d fs.DirEntry, err error) error {
 			if err != nil {
 				errs = append(errs, fmt.Errorf("failed to access %s: %w", path, err))
 				return nil
@@ -74,10 +81,10 @@ func sortedContent(path string) ([]byte, []byte, error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to parse file: %w", err)
 	}
-	if err := sorter.SortFile(file); err != nil {
+	if err := sorter.SortFile(file, sortOptions); err != nil {
 		return nil, nil, err
 	}
-	return content, parser.FormatFile(file), nil
+	return content, file.Source, nil
 }
 
 func isTerraformFile(path string) bool {

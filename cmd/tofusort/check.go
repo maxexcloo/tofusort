@@ -47,11 +47,16 @@ func runCheck(cmd *cobra.Command, args []string) error {
 		for _, file := range unsortedFiles {
 			fmt.Printf("Not sorted: %s\n", file)
 		}
+		command := "tofusort sort"
+		if sortOptions.IdentifiersFirst {
+			command += " --identifiers-first"
+		}
 		errs = append(
 			errs,
 			fmt.Errorf(
-				"found %d unsorted file(s); run 'tofusort sort' to fix",
+				"found %d unsorted file(s); run '%s' to fix",
 				len(unsortedFiles),
+				command,
 			),
 		)
 	}

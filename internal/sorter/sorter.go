@@ -17,6 +17,10 @@ var blockTypeOrder = map[string]int{
 	"data": 4, "resource": 5, "module": 6, "output": 7,
 }
 
+type Options struct {
+	IdentifiersFirst bool
+}
+
 type edit struct {
 	start, end int
 	content    []byte
@@ -30,12 +34,13 @@ type entry struct {
 	block      bool
 }
 type document struct {
-	file  *parser.File
-	edits []edit
+	file    *parser.File
+	edits   []edit
+	options Options
 }
 
-func SortFile(file *parser.File) error {
-	d := &document{file: file}
+func SortFile(file *parser.File, options Options) error {
+	d := &document{file: file, options: options}
 	d.body(file.Body, 0, len(file.Source), true, false)
 	output := d.render(0, len(file.Source))
 	sorted, err := parser.ParseFile(output)
@@ -118,6 +123,7 @@ func (d *document) body(body *hclsyntax.Body, start, end int, root, meta bool) {
 func (d *document) expression(expr hclsyntax.Expression) {
 	var objects []*hclsyntax.ObjectConsExpr
 	var templates []hcl.Range
+	listItems := make(map[*hclsyntax.ObjectConsExpr]bool)
 	_ = hclsyntax.VisitAll(expr, func(node hclsyntax.Node) hcl.Diagnostics {
 		switch node := node.(type) {
 		case *hclsyntax.ObjectConsExpr:
@@ -126,6 +132,21 @@ func (d *document) expression(expr hclsyntax.Expression) {
 			templates = append(templates, node.Range())
 		case *hclsyntax.TemplateWrapExpr:
 			templates = append(templates, node.Range())
+		case *hclsyntax.TupleConsExpr:
+			if d.options.IdentifiersFirst {
+				for _, item := range node.Exprs {
+					for {
+						parentheses, ok := item.(*hclsyntax.ParenthesesExpr)
+						if !ok {
+							break
+						}
+						item = parentheses.Expression
+					}
+					if object, ok := item.(*hclsyntax.ObjectConsExpr); ok {
+						listItems[object] = true
+					}
+				}
+			}
 		}
 		return nil
 	})
@@ -153,9 +174,19 @@ func (d *document) expression(expr hclsyntax.Expression) {
 			}
 			keys[key] = true
 			start, end := item.KeyExpr.Range().Start.Byte, item.ValueExpr.Range().End.Byte
-			group := 0
+			group := 3
 			if bytes.Contains(d.render(item.ValueExpr.Range().Start.Byte, end), []byte("\n")) {
-				group = 1
+				group = 4
+			}
+			if listItems[object] {
+				switch key {
+				case "type":
+					group = 0
+				case "name":
+					group = 1
+				case "id":
+					group = 2
+				}
 			}
 			entries = append(entries, entry{start: start, end: end, key: key, group: group, content: d.render(start, end)})
 		}
@@ -198,9 +229,12 @@ func (d *document) attach(entries []entry, start, end int, object bool) []entry 
 		if i+1 < len(entries) {
 			next = entries[i+1].start
 		}
-		for _, token := range d.file.Tokens {
-			if token.Range.Start.Byte < entries[i].end || token.Range.End.Byte > next {
-				continue
+		first := sort.Search(len(d.file.Tokens), func(j int) bool {
+			return d.file.Tokens[j].Range.Start.Byte >= entries[i].end
+		})
+		for _, token := range d.file.Tokens[first:] {
+			if token.Range.End.Byte > next {
+				break
 			}
 			if token.Type != hclsyntax.TokenComment {
 				continue
@@ -232,9 +266,15 @@ func (d *document) attach(entries []entry, start, end int, object bool) []entry 
 			prev = entries[i-1].end
 		}
 		leading := entries[i].start
-		for j := len(d.file.Tokens) - 1; j >= 0; j-- {
+		last := sort.Search(len(d.file.Tokens), func(j int) bool {
+			return d.file.Tokens[j].Range.End.Byte > leading
+		})
+		for j := last - 1; j >= 0; j-- {
 			token := d.file.Tokens[j]
-			if token.Range.Start.Byte < prev || token.Range.End.Byte > leading || token.Type != hclsyntax.TokenComment {
+			if token.Range.Start.Byte < prev {
+				break
+			}
+			if token.Type != hclsyntax.TokenComment {
 				continue
 			}
 			gap := d.file.Source[token.Range.End.Byte:leading]

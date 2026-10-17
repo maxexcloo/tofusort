@@ -27,7 +27,7 @@ func TestSortPreservesValues(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if err := SortFile(file); err != nil {
+			if err := SortFile(file, Options{}); err != nil {
 				t.Fatal(err)
 			}
 			output := parser.FormatFile(file)
@@ -54,7 +54,7 @@ func TestSortPreservesValues(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if err := SortFile(again); err != nil {
+			if err := SortFile(again, Options{}); err != nil {
 				t.Fatal(err)
 			}
 			if second := parser.FormatFile(again); !bytes.Equal(output, second) {
@@ -84,7 +84,7 @@ func TestSortPreservesNestedBlockOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 	blocks := file.Body.Blocks[0].Body.Blocks
-	if err := SortFile(file); err != nil {
+	if err := SortFile(file, Options{}); err != nil {
 		t.Fatal(err)
 	}
 	got := file.Body.Blocks[0].Body.Blocks

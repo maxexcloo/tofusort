@@ -16,6 +16,10 @@ var rootCmd = &cobra.Command{
 It sorts blocks by type, attributes within blocks, and preserves comments and formatting.`,
 }
 
+func init() {
+	rootCmd.PersistentFlags().BoolVar(&sortOptions.IdentifiersFirst, "identifiers-first", false, "Put type, name and id first in list-item objects")
+}
+
 func main() {
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
