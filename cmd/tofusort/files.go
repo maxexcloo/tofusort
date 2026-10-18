@@ -6,13 +6,23 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/maxexcloo/tofusort/internal/parser"
 	"github.com/maxexcloo/tofusort/internal/sorter"
+	"github.com/spf13/cobra"
 )
 
-var sortOptions sorter.Options
+var (
+	recursive           bool
+	sortOptions         sorter.Options
+	terraformExtensions = []string{".tf", ".tfvars"}
+)
+
+func addRecursiveFlag(cmd *cobra.Command) {
+	cmd.Flags().BoolVarP(&recursive, "recursive", "r", false, "Process directories recursively")
+}
 
 // visitPath returns errors that already name the file or directory involved.
 func visitPath(path, action string, visit func(string) error) error {
@@ -80,7 +90,7 @@ func visitDirectory(dir, action string, visit func(string) error) error {
 
 func sortedContent(path string) ([]byte, []byte, error) {
 	if !isTerraformFile(path) {
-		return nil, nil, fmt.Errorf("unsupported file format: %s (expected .tf or .tfvars)", path)
+		return nil, nil, fmt.Errorf("unsupported file format: %s (expected %s)", path, strings.Join(terraformExtensions, " or "))
 	}
 	content, err := os.ReadFile(path)
 	if err != nil {
@@ -97,6 +107,5 @@ func sortedContent(path string) ([]byte, []byte, error) {
 }
 
 func isTerraformFile(path string) bool {
-	ext := strings.ToLower(filepath.Ext(path))
-	return ext == ".tf" || ext == ".tfvars"
+	return slices.Contains(terraformExtensions, strings.ToLower(filepath.Ext(path)))
 }
