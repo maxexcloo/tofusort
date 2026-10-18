@@ -1,8 +1,6 @@
 module github.com/maxexcloo/tofusort
 
-go 1.26.0
-
-toolchain go1.27.2
+go 1.27.2
 
 require (
 	github.com/hashicorp/hcl/v2 v2.25.0

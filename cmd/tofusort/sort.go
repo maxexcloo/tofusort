@@ -10,10 +10,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	dryRun    bool
-	recursive bool
-)
+var dryRun bool
 
 var sortCmd = &cobra.Command{
 	Args:  cobra.MinimumNArgs(1),
@@ -26,7 +23,7 @@ Sorts blocks by type, then by name within type, and attributes within blocks.`,
 
 func init() {
 	sortCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Show what would be changed without modifying files")
-	sortCmd.Flags().BoolVarP(&recursive, "recursive", "r", false, "Process directories recursively")
+	addRecursiveFlag(sortCmd)
 	rootCmd.AddCommand(sortCmd)
 }
 

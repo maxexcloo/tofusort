@@ -26,6 +26,19 @@ var leadingMeta = map[string][]string{
 	"resource": {"count", "for_each", "provider"},
 }
 
+// Identifier keys lead list-item objects in this order with --identifiers-first.
+var identifierKeys = []string{"type", "name", "id"}
+
+// Entry groups sort before keys. Root blocks add their type priority.
+const (
+	groupLeading = iota
+	groupSingleLine
+	groupMultiline
+	groupDependsOn
+	groupBlock
+	groupRootBlock
+)
+
 type Options struct {
 	IdentifiersFirst bool
 }
@@ -97,14 +110,11 @@ func (d *document) body(body *hclsyntax.Body, start, end int, root bool, meta []
 		d.expression(attr.Expr)
 		r := attr.Range()
 		content := d.render(r.Start.Byte, r.End.Byte)
-		group, key := 2, name
-		if bytes.Contains(d.render(attr.Expr.Range().Start.Byte, attr.Expr.Range().End.Byte), []byte("\n")) {
-			group = 3
-		}
+		group, key := d.valueGroup(attr.Expr), name
 		if i := slices.Index(meta, name); i >= 0 {
-			group, key = 0, fmt.Sprint(i)
+			group, key = groupLeading, fmt.Sprint(i)
 		} else if meta != nil && name == "depends_on" {
-			group = 4
+			group = groupDependsOn
 		}
 		entries = append(entries, entry{start: r.Start.Byte, end: r.End.Byte, key: key, group: group, content: content})
 	}
@@ -115,10 +125,10 @@ func (d *document) body(body *hclsyntax.Body, start, end int, root bool, meta []
 		}
 		d.body(block.Body, block.OpenBraceRange.End.Byte, block.CloseBraceRange.Start.Byte, false, meta)
 		r := block.Range()
-		item := entry{start: r.Start.Byte, end: r.End.Byte, group: 5, block: true, content: d.render(r.Start.Byte, r.End.Byte)}
+		item := entry{start: r.Start.Byte, end: r.End.Byte, group: groupBlock, block: true, content: d.render(r.Start.Byte, r.End.Byte)}
 		if root {
 			priority, known := blockTypeOrder[block.Type]
-			item.group = 10 + priority
+			item.group = groupRootBlock + priority
 			item.key = strings.Join(block.Labels, "\x00")
 			item.barrier = !known
 		}
@@ -181,27 +191,25 @@ func (d *document) expression(expr hclsyntax.Expression) {
 			}
 			keys[key] = true
 			start, end := item.KeyExpr.Range().Start.Byte, item.ValueExpr.Range().End.Byte
-			group := 3
-			if bytes.Contains(d.render(item.ValueExpr.Range().Start.Byte, end), []byte("\n")) {
-				group = 4
+			group, sortKey := d.valueGroup(item.ValueExpr), key
+			if i := slices.Index(identifierKeys, key); listItems[object] && i >= 0 {
+				group, sortKey = groupLeading, fmt.Sprint(i)
 			}
-			if listItems[object] {
-				switch key {
-				case "type":
-					group = 0
-				case "name":
-					group = 1
-				case "id":
-					group = 2
-				}
-			}
-			entries = append(entries, entry{start: start, end: end, key: key, group: group, content: d.render(start, end)})
+			entries = append(entries, entry{start: start, end: end, key: sortKey, group: group, content: d.render(start, end)})
 		}
 		// Computed and duplicate keys can make source order significant.
 		if sortable {
 			d.reorder(r.Start.Byte+1, r.End.Byte-1, entries, true)
 		}
 	}
+}
+
+func (d *document) valueGroup(expr hclsyntax.Expression) int {
+	r := expr.Range()
+	if bytes.Contains(d.render(r.Start.Byte, r.End.Byte), []byte("\n")) {
+		return groupMultiline
+	}
+	return groupSingleLine
 }
 
 func literalKey(expr hclsyntax.Expression) (string, bool) {
@@ -349,7 +357,7 @@ func (d *document) reorder(start, end int, entries []entry, object bool) {
 					out.WriteString(", ")
 				} else {
 					out.WriteByte('\n')
-					if !object && (item.block || run[i-1].block || item.group != run[i-1].group || item.group == 3) {
+					if !object && (item.block || run[i-1].block || item.group != run[i-1].group || item.group == groupMultiline) {
 						out.WriteByte('\n')
 					}
 				}
