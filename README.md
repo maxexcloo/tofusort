@@ -12,7 +12,11 @@ mise run build
 ```
 
 To install the binary into the configured Go binary directory, run
-`mise run install`.
+`mise run install`, or install it without cloning:
+
+```bash
+go install github.com/maxexcloo/tofusort/cmd/tofusort@latest
+```
 
 ## Usage
 
@@ -40,22 +44,28 @@ invalid or inaccessible inputs. Directory scans skip unsupported extensions;
 explicit unsupported file arguments produce errors. Use `--` before filenames
 that start with a dash. Explicit directory symlinks are followed, including with
 `--recursive`; directory symlinks encountered during a scan are not traversed.
+Recursive scans skip `.git` and `.terraform` directories below the supplied root.
 
 ## Sorting Rules
 
 - **Attributes:** Single-line values first, then multiline values, alphabetical
-  within each group. In resource, data, module and provider bodies, `count` and
-  `for_each` lead; `depends_on` follows ordinary attributes. Nested blocks follow
-  attributes and retain their original order.
+  within each group. Following the HashiCorp style guide, meta-arguments lead
+  as one group: `source`, `version`, `count` and `for_each` in modules; `count`,
+  `for_each` and `provider` in resources and data sources; `count` and
+  `for_each` in providers. `depends_on` follows ordinary attributes in these
+  bodies. Nested blocks follow attributes and retain their original order.
 - **Comments:** Immediately preceding comment lines and same-line trailing
   comments stay with their entry. Ambiguous comments between inline peers keep
   those peers in place. Detached section comments are boundaries:
   entries on opposite sides are not mixed. File headers and footers separated
   from entries by blank lines remain in place.
-- **Formatting:** HCL's formatter handles indentation and alignment. Inline
-  objects remain inline. The sorter separates attribute groups and blocks with
-  blank lines; it does not rewrite literal or template contents or run regular
-  expressions over source text.
+- **Formatting:** HCL's formatter handles indentation and alignment. Objects
+  stay inline when no newline separates their entries, even if a value spans
+  lines; entries in multiline objects keep their own trailing commas. The sorter
+  separates attribute groups and blocks with blank lines; it does not rewrite
+  literal or template contents or run regular expressions over source text.
+  CRLF line endings are normalised to LF, so `check` reports CRLF files as
+  unsorted until `sort` rewrites them.
 - **Objects:** Bare and quoted literal keys follow the same single-line-first
   rule, including objects inside functions, comprehensions and type constraints.
   Objects with computed or duplicate keys retain peer order; their independently
@@ -82,13 +92,18 @@ docker build -t tofusort .
 docker run --rm -v "$(pwd):/workspace" -w /workspace tofusort sort main.tf
 ```
 
+The Container workflow runs checks and publishes AMD64 and ARM64 images for
+pushes to `main` and version tags. Pushes to `main` that only change Markdown,
+`.gitignore` or `LICENSE` skip the workflow. Pull requests run the same checks
+and image build without publishing.
+
 ## Development
 
 Install the [shared Mise configuration](https://github.com/maxexcloo/dotfiles#shared-tools--tasks)
 before running local Mise tasks.
 
-`mise run check` runs Go vet, tests, gofmt verification and Updatecli manifest
-validation.
+`mise run check` runs actionlint, Go vet, tests, gofmt verification and
+Updatecli manifest validation.
 
 ```bash
 mise run check
@@ -103,7 +118,3 @@ mise exec -- go test ./internal/sorter -run '^$' -fuzz FuzzSortPreservesStructur
 
 Follow [AGENTS.md](AGENTS.md). See [architecture](docs/architecture.md) for the
 implementation and preservation tests. Licensed under [AGPL-3.0](LICENSE).
-
-The Container workflow publishes AMD64 and ARM64 images when runtime or build inputs
-change on `main`, or when pushing a version tag. Metadata-only changes retain the
-required tests and skip image builds. Pull requests run Go tests, vet and image builds without publishing.

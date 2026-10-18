@@ -3,6 +3,7 @@ package sorter
 import (
 	"bytes"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -15,6 +16,14 @@ import (
 var blockTypeOrder = map[string]int{
 	"terraform": 0, "provider": 1, "variable": 2, "locals": 3,
 	"data": 4, "resource": 5, "module": 6, "output": 7,
+}
+
+// Leading meta-arguments share one group in this order; depends_on trails.
+var leadingMeta = map[string][]string{
+	"data":     {"count", "for_each", "provider"},
+	"module":   {"source", "version", "count", "for_each"},
+	"provider": {"count", "for_each"},
+	"resource": {"count", "for_each", "provider"},
 }
 
 type Options struct {
@@ -41,7 +50,7 @@ type document struct {
 
 func SortFile(file *parser.File, options Options) error {
 	d := &document{file: file, options: options}
-	d.body(file.Body, 0, len(file.Source), true, false)
+	d.body(file.Body, 0, len(file.Source), true, nil)
 	output := d.render(0, len(file.Source))
 	sorted, err := parser.ParseFile(output)
 	if err != nil {
@@ -82,31 +91,29 @@ func (d *document) replace(start, end int, content []byte) {
 	sort.Slice(d.edits, func(i, j int) bool { return d.edits[i].start < d.edits[j].start })
 }
 
-func (d *document) body(body *hclsyntax.Body, start, end int, root, meta bool) {
+func (d *document) body(body *hclsyntax.Body, start, end int, root bool, meta []string) {
 	var entries []entry
 	for name, attr := range body.Attributes {
 		d.expression(attr.Expr)
 		r := attr.Range()
 		content := d.render(r.Start.Byte, r.End.Byte)
-		group := 2
+		group, key := 2, name
 		if bytes.Contains(d.render(attr.Expr.Range().Start.Byte, attr.Expr.Range().End.Byte), []byte("\n")) {
 			group = 3
 		}
-		if meta {
-			switch name {
-			case "count":
-				group = 0
-			case "for_each":
-				group = 1
-			case "depends_on":
-				group = 4
-			}
+		if i := slices.Index(meta, name); i >= 0 {
+			group, key = 0, fmt.Sprint(i)
+		} else if meta != nil && name == "depends_on" {
+			group = 4
 		}
-		entries = append(entries, entry{start: r.Start.Byte, end: r.End.Byte, key: name, group: group, content: content})
+		entries = append(entries, entry{start: r.Start.Byte, end: r.End.Byte, key: key, group: group, content: content})
 	}
 	for _, block := range body.Blocks {
-		hasMeta := root && (block.Type == "resource" || block.Type == "data" || block.Type == "module" || block.Type == "provider")
-		d.body(block.Body, block.OpenBraceRange.End.Byte, block.CloseBraceRange.Start.Byte, false, hasMeta)
+		var meta []string
+		if root {
+			meta = leadingMeta[block.Type]
+		}
+		d.body(block.Body, block.OpenBraceRange.End.Byte, block.CloseBraceRange.Start.Byte, false, meta)
 		r := block.Range()
 		item := entry{start: r.Start.Byte, end: r.End.Byte, group: 5, block: true, content: d.render(r.Start.Byte, r.End.Byte)}
 		if root {
@@ -301,6 +308,25 @@ func (d *document) reorder(start, end int, entries []entry, object bool) {
 		return
 	}
 	sort.Slice(entries, func(i, j int) bool { return entries[i].start < entries[j].start })
+	// Object layout follows the gaps around entries, not newlines inside values.
+	inline := object
+	previous := start
+	for _, item := range entries {
+		inline = inline && !bytes.Contains(d.file.Source[previous:item.start], []byte("\n"))
+		previous = item.end
+	}
+	inline = inline && !bytes.Contains(d.file.Source[previous:end], []byte("\n"))
+	if object && !inline {
+		// Newline-separated entries keep their own trailing comma.
+		for i := range entries {
+			gap := d.file.Source[entries[i].end:end]
+			if rest := bytes.TrimLeft(gap, " \t"); len(rest) > 0 && rest[0] == ',' {
+				comma := entries[i].end + len(gap) - len(rest) + 1
+				entries[i].content = append(entries[i].content, d.file.Source[entries[i].end:comma]...)
+				entries[i].end = comma
+			}
+		}
+	}
 	entries = d.attach(entries, start, end, object)
 	var out bytes.Buffer
 	cursor := start
@@ -317,10 +343,9 @@ func (d *document) reorder(start, end int, entries []entry, object bool) {
 			}
 			return run[i].key < run[j].key
 		})
-		multiline := bytes.Contains(d.file.Source[start:end], []byte("\n"))
 		for i, item := range run {
 			if i > 0 {
-				if object && !multiline {
+				if inline {
 					out.WriteString(", ")
 				} else {
 					out.WriteByte('\n')

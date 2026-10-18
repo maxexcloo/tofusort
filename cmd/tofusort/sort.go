@@ -35,7 +35,7 @@ func runSort(cmd *cobra.Command, args []string) error {
 
 	for _, path := range args {
 		if err := visitPath(path, "process", processFile); err != nil {
-			errs = append(errs, fmt.Errorf("failed to process %s: %w", path, err))
+			errs = append(errs, err)
 		}
 	}
 
