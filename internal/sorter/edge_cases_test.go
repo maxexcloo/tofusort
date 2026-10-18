@@ -247,6 +247,15 @@ func TestInlineCommentDoesNotCaptureNextComment(t *testing.T) {
 	}
 }
 
+func TestTrailingSpacesDoNotJoinMovedComment(t *testing.T) {
+	for _, input := range []string{"B=0#\nA=0 \n", "B=0#\nA=0 "} {
+		output := verifyPreservation(t, []byte(input), Options{})
+		if expected := "A = 0\nB = 0 #\n"; string(output) != expected {
+			t.Fatalf("unexpected output for %q:\n%q", input, output)
+		}
+	}
+}
+
 func TestAmbiguousInlineCommentKeepsPeerOrder(t *testing.T) {
 	input := "x = { z = 1, /* between peers */ a = 2 }\n"
 	output := verifyPreservation(t, []byte(input), Options{})
