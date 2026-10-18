@@ -48,6 +48,8 @@ func TestEdgeCases(t *testing.T) {
 		"z=1\r\na=2\r\n",
 		"# CR before end of file\r",
 		"# CR runs\r\r\n",
+		"A0=b\r",
+		"A=1E000020000000\n",
 	}
 	for i, input := range cases {
 		t.Run(fmt.Sprint(i), func(t *testing.T) { verifyPreservation(t, []byte(input), Options{}) })

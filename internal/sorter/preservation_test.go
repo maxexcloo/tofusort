@@ -75,6 +75,10 @@ func signature(v reflect.Value) string {
 		case hcl.Range, hcl.Pos:
 			return ""
 		case cty.Value:
+			// Binary notation stays exact and fast; GoString expands huge exponents in decimal.
+			if value.Type() == cty.Number && value.IsKnown() && !value.IsNull() {
+				return "number:" + value.AsBigFloat().Text('p', 0)
+			}
 			return value.GoString()
 		case cty.Type:
 			return value.GoString()
