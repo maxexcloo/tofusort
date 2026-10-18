@@ -92,10 +92,10 @@ docker build -t tofusort .
 docker run --rm -v "$(pwd):/workspace" -w /workspace tofusort sort main.tf
 ```
 
-The Container workflow publishes AMD64 and ARM64 images when runtime or build
-inputs change on `main`, or when pushing a version tag. Metadata-only changes
-retain the required tests and skip image builds. Pull requests run Go tests, vet
-and image builds without publishing.
+The Container workflow runs checks and publishes AMD64 and ARM64 images for
+pushes to `main` and version tags. Pushes to `main` that only change Markdown,
+`.gitignore` or `LICENSE` skip the workflow. Pull requests run the same checks
+and image build without publishing.
 
 ## Development
 
