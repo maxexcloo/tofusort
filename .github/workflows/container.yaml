@@ -6,11 +6,15 @@ on:
   push:
     branches:
       - main
+    # Path filters do not apply to tag pushes, so releases always build.
+    paths-ignore:
+      - "**.md"
+      - .gitignore
+      - LICENSE
     tags:
       - "v*"
 
 permissions:
-  actions: read
   contents: read
 
 concurrency:
@@ -24,41 +28,20 @@ jobs:
   check:
     name: Check
     runs-on: ubuntu-latest
-    outputs:
-      image: ${{ steps.changes.outputs.image }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          fetch-depth: 0
           persist-credentials: false
-      - id: changes
-        name: Identify Image Inputs
-        env:
-          BASE_REVISION: ${{ github.event.pull_request.base.sha || github.event.before }}
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          # Pending main runs can be replaced; include every change not yet verified and published.
-          if [ "$GITHUB_EVENT_NAME" = push ] && [ "$GITHUB_REF_TYPE" != tag ]; then
-            BASE_REVISION=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/container.yaml/runs?branch=$GITHUB_REF_NAME&event=push&status=success&per_page=1" --jq '.workflow_runs[0].head_sha // ""' || true)
-          fi
-          image=true
-          if [ "$GITHUB_EVENT_NAME" != workflow_dispatch ] && [ "$GITHUB_REF_TYPE" != tag ] && [ -n "$BASE_REVISION" ] && [ "$BASE_REVISION" != 0000000000000000000000000000000000000000 ]; then
-            if git merge-base --is-ancestor HEAD "$BASE_REVISION" || git diff --quiet "$BASE_REVISION" HEAD -- . ':!AGENTS.md' ':!LICENSE' ':!README.md' ':!docs/**' ':!.gitignore' ':!.mise.toml' ':!.updatecli.d/**'; then
-              image=false
-            fi
-          fi
-          echo "image=$image" >> "$GITHUB_OUTPUT"
       - name: Set Up Shared Tools & Tasks
         uses: maxexcloo/dotfiles/.github/actions/mise@main
         with:
-          tools: actionlint go python updatecli
+          tools: actionlint go updatecli
       - name: Run Checks
         run: mise run check
 
   build:
     name: Build Image
-    if: needs.check.outputs.image == 'true'
     needs: check
     runs-on: ubuntu-latest
     permissions:

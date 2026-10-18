@@ -266,3 +266,72 @@ func TestCommandsFollowExplicitDirectorySymlink(t *testing.T) {
 		})
 	}
 }
+
+func TestSortWritesLFForCRLFInput(t *testing.T) {
+	dryRun = false
+	inputs := map[string]string{"sorted.tf": "a = 2\r\nz = 1\r\n", "unsorted.tf": "z = 1\r\na = 2\r\n"}
+	for name, input := range inputs {
+		t.Run(name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), name)
+			if err := os.WriteFile(path, []byte(input), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if err := runCheck(nil, []string{path}); err == nil {
+				t.Fatal("check accepted CRLF input that sort would rewrite")
+			}
+			if err := runSort(nil, []string{path}); err != nil {
+				t.Fatal(err)
+			}
+			content, err := os.ReadFile(path)
+			if err != nil || string(content) != "a = 2\nz = 1\n" {
+				t.Fatalf("sort did not write sorted LF output: %q, %v", content, err)
+			}
+			if err := runCheck(nil, []string{path}); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}
+
+func TestRecursiveScanSkipsToolDirectories(t *testing.T) {
+	recursive = true
+	t.Cleanup(func() { recursive = false })
+	root := filepath.Join(t.TempDir(), ".terraform")
+	for _, dir := range []string{".git", ".terraform/modules", "nested/.git"} {
+		path := filepath.Join(root, dir)
+		if err := os.MkdirAll(path, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(path, "main.tf"), []byte("z = 1\na = 2\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := runCheck(nil, []string{root}); err != nil {
+		t.Fatalf("check scanned a skipped directory: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "main.tf"), []byte("z = 1\na = 2\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := runCheck(nil, []string{root}); err == nil || !strings.Contains(err.Error(), "1 unsorted") {
+		t.Fatalf("check skipped the supplied root: %v", err)
+	}
+}
+
+func TestRecursiveScanReportsSuppliedSymlinkPath(t *testing.T) {
+	recursive = true
+	t.Cleanup(func() { recursive = false })
+	root := t.TempDir()
+	if err := os.Mkdir(filepath.Join(root, "real"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "real", "invalid.tf"), []byte("invalid {"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(root, "link")
+	if err := os.Symlink("real", link); err != nil {
+		t.Fatal(err)
+	}
+	if err := runCheck(nil, []string{link}); err == nil || !strings.Contains(err.Error(), filepath.Join(link, "invalid.tf")) {
+		t.Fatalf("check did not report the supplied path: %v", err)
+	}
+}

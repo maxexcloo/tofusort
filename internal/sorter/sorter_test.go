@@ -220,6 +220,47 @@ func TestMetaArgumentOrdering(t *testing.T) {
 	testSorting(t, input, expected)
 }
 
+func TestLeadingMetaArgumentOrdering(t *testing.T) {
+	input := `module "vpc" {
+  name    = "main"
+  count   = 2
+  version = "1.0.0"
+  source  = "hashicorp/vpc/aws"
+}
+
+resource "aws_instance" "example" {
+  ami      = "ami-12345"
+  provider = aws.west
+  for_each = var.instances
+}
+`
+	expected := `resource "aws_instance" "example" {
+  for_each = var.instances
+  provider = aws.west
+
+  ami = "ami-12345"
+}
+
+module "vpc" {
+  source  = "hashicorp/vpc/aws"
+  version = "1.0.0"
+  count   = 2
+
+  name = "main"
+}
+`
+	file, err := parser.ParseFile([]byte(input))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := SortFile(file, Options{}); err != nil {
+		t.Fatal(err)
+	}
+	if string(file.Source) != expected {
+		t.Fatalf("unexpected meta-argument order:\n%s", file.Source)
+	}
+}
+
 func TestNestedObjectSorting(t *testing.T) {
 	input := `variable "config" {
   default = {

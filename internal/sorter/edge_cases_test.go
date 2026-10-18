@@ -131,7 +131,7 @@ func commentSignature(file *parser.File) string {
 	var comments []string
 	for _, token := range file.Tokens {
 		if token.Type == hclsyntax.TokenComment {
-			comments = append(comments, strings.TrimSuffix(string(token.Bytes), "\n"))
+			comments = append(comments, strings.TrimRight(string(token.Bytes), "\r\n"))
 		}
 	}
 	sort.Strings(comments)
@@ -175,6 +175,8 @@ func TestEdgeCases(t *testing.T) {
 		"run \"z\" { command=apply }\nrun \"a\" { command=plan }\n",
 		"resource \"z\" \"x\" {}\nunknown {}\nresource \"a\" \"x\" {}\n",
 		"z=1\r\na=2\r\n",
+		"# CR before end of file\r",
+		"# CR runs\r\r\n",
 	}
 	for i, input := range cases {
 		t.Run(fmt.Sprint(i), func(t *testing.T) { verifyPreservation(t, []byte(input), Options{}) })
@@ -429,5 +431,25 @@ func TestAmbiguousInlineCommentKeepsPeerOrder(t *testing.T) {
 	output := verifyPreservation(t, []byte(input), Options{})
 	if string(output) != input {
 		t.Fatalf("ambiguous comment moved:\n%s", output)
+	}
+}
+
+func TestMultilineObjectEntriesKeepCommas(t *testing.T) {
+	cases := map[string]string{
+		"x = {\n  b = 1,\n  a = 2,\n}\n":    "x = {\n  a = 2,\n  b = 1,\n}\n",
+		"x = {\n  b = 1, # B\n  a = 2\n}\n": "x = {\n  a = 2\n  b = 1, # B\n}\n",
+	}
+	for input, expected := range cases {
+		if output := verifyPreservation(t, []byte(input), Options{}); string(output) != expected {
+			t.Errorf("unexpected commas for %q:\n%s", input, output)
+		}
+	}
+}
+
+func TestInlineObjectWithMultilineValueStaysInline(t *testing.T) {
+	input := "x = { b = {\n  y = 1\n}, a = 2 }\n"
+	expected := "x = { a = 2, b = {\n  y = 1\n} }\n"
+	if output := verifyPreservation(t, []byte(input), Options{}); string(output) != expected {
+		t.Fatalf("inline object layout changed:\n%s", output)
 	}
 }
