@@ -370,6 +370,10 @@ func (d *document) reorder(start, end int, entries []entry, object bool) {
 			out.WriteByte('\n')
 		}
 		cursor = entries[last-1].end
+		// Drop trailing spaces of the run's last source entry; another entry may end in a comment.
+		if bytes.HasPrefix(trailing, []byte("\n")) || (!object && len(trailing) == 0) {
+			cursor = end - len(trailing)
+		}
 		first = last
 	}
 	out.Write(d.file.Source[cursor:end])
