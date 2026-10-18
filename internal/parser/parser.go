@@ -15,12 +15,11 @@ type File struct {
 	Tokens hclsyntax.Tokens
 }
 
-// ParseFile normalises CRLF line endings to LF, so sorted output always uses LF.
-// Repeating the replacement also folds runs such as CR CR LF, keeping it idempotent.
+// ParseFile normalises CRLF and lone CR line endings to LF, so sorted output
+// always uses LF.
 func ParseFile(content []byte) (*File, error) {
-	for bytes.Contains(content, []byte("\r\n")) {
-		content = bytes.ReplaceAll(content, []byte("\r\n"), []byte("\n"))
-	}
+	content = bytes.ReplaceAll(content, []byte("\r\n"), []byte("\n"))
+	content = bytes.ReplaceAll(content, []byte("\r"), []byte("\n"))
 	file, diags := hclsyntax.ParseConfig(content, "", hcl.InitialPos)
 	if diags.HasErrors() {
 		return nil, fmt.Errorf("failed to parse HCL: %s", diags.Error())

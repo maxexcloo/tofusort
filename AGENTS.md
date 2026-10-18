@@ -21,7 +21,7 @@
 - Keep `check` non-mutating and return a non-zero exit status for unsorted or
   invalid input.
 - Preserve standard Unix-style flags and include file context in errors.
-- Normalise CRLF line endings to LF on parse and write LF output.
+- Normalise CRLF and lone CR line endings to LF on parse and write LF output.
 - Skip `.git` and `.terraform` directories below the root in recursive scans.
 - Order leading meta-arguments per the HashiCorp style guide, as defined by
   `leadingMeta` in `internal/sorter/sorter.go`.
