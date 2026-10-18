@@ -46,17 +46,18 @@ func visitDirectory(dir, action string, visit func(string) error) error {
 			return fmt.Errorf("failed to resolve directory %s: %w", dir, err)
 		}
 		err = filepath.WalkDir(target, func(path string, d fs.DirEntry, err error) error {
+			if d != nil && d.IsDir() && path != target && (d.Name() == ".git" || d.Name() == ".terraform") {
+				return fs.SkipDir
+			}
+			// Report paths under the directory as supplied, not its resolved target.
+			if rel, relErr := filepath.Rel(target, path); relErr == nil {
+				path = filepath.Join(dir, rel)
+			}
 			if err != nil {
 				errs = append(errs, fmt.Errorf("failed to access %s: %w", path, err))
-				return nil
+			} else if !d.IsDir() {
+				visitFile(path)
 			}
-			if d.IsDir() {
-				if path != target && (d.Name() == ".git" || d.Name() == ".terraform") {
-					return fs.SkipDir
-				}
-				return nil
-			}
-			visitFile(path)
 			return nil
 		})
 		if err != nil {

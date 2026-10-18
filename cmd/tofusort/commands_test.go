@@ -316,3 +316,22 @@ func TestRecursiveScanSkipsToolDirectories(t *testing.T) {
 		t.Fatalf("check skipped the supplied root: %v", err)
 	}
 }
+
+func TestRecursiveScanReportsSuppliedSymlinkPath(t *testing.T) {
+	recursive = true
+	t.Cleanup(func() { recursive = false })
+	root := t.TempDir()
+	if err := os.Mkdir(filepath.Join(root, "real"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "real", "invalid.tf"), []byte("invalid {"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(root, "link")
+	if err := os.Symlink("real", link); err != nil {
+		t.Fatal(err)
+	}
+	if err := runCheck(nil, []string{link}); err == nil || !strings.Contains(err.Error(), filepath.Join(link, "invalid.tf")) {
+		t.Fatalf("check did not report the supplied path: %v", err)
+	}
+}
