@@ -41,7 +41,8 @@ Same-line trailing comments and immediately preceding comment lines are attached
 to complete entries. Ambiguous comments between inline peers keep those peers
 in place. Detached comments delimit sortable runs. Whitespace and
 comments outside those runs stay in place. Inline objects use comma separators;
-multiline objects use newlines. Comment attachment searches the token stream for
+multiline objects use newlines,
+and each entry keeps its own trailing comma. Comment attachment searches the token stream for
 adjacent gaps rather than scanning the whole file for each entry. HCL formats
 the resulting source once, within the sorter.
 

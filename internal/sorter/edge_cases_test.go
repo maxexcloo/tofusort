@@ -433,3 +433,15 @@ func TestAmbiguousInlineCommentKeepsPeerOrder(t *testing.T) {
 		t.Fatalf("ambiguous comment moved:\n%s", output)
 	}
 }
+
+func TestMultilineObjectEntriesKeepCommas(t *testing.T) {
+	cases := map[string]string{
+		"x = {\n  b = 1,\n  a = 2,\n}\n":    "x = {\n  a = 2,\n  b = 1,\n}\n",
+		"x = {\n  b = 1, # B\n  a = 2\n}\n": "x = {\n  a = 2\n  b = 1, # B\n}\n",
+	}
+	for input, expected := range cases {
+		if output := verifyPreservation(t, []byte(input), Options{}); string(output) != expected {
+			t.Errorf("unexpected commas for %q:\n%s", input, output)
+		}
+	}
+}

@@ -301,6 +301,18 @@ func (d *document) reorder(start, end int, entries []entry, object bool) {
 		return
 	}
 	sort.Slice(entries, func(i, j int) bool { return entries[i].start < entries[j].start })
+	inline := object && !bytes.Contains(d.file.Source[start:end], []byte("\n"))
+	if object && !inline {
+		// Newline-separated entries keep their own trailing comma.
+		for i := range entries {
+			gap := d.file.Source[entries[i].end:end]
+			if rest := bytes.TrimLeft(gap, " \t"); len(rest) > 0 && rest[0] == ',' {
+				comma := entries[i].end + len(gap) - len(rest) + 1
+				entries[i].content = append(entries[i].content, d.file.Source[entries[i].end:comma]...)
+				entries[i].end = comma
+			}
+		}
+	}
 	entries = d.attach(entries, start, end, object)
 	var out bytes.Buffer
 	cursor := start
@@ -317,10 +329,9 @@ func (d *document) reorder(start, end int, entries []entry, object bool) {
 			}
 			return run[i].key < run[j].key
 		})
-		multiline := bytes.Contains(d.file.Source[start:end], []byte("\n"))
 		for i, item := range run {
 			if i > 0 {
-				if object && !multiline {
+				if inline {
 					out.WriteString(", ")
 				} else {
 					out.WriteByte('\n')
