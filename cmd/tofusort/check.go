@@ -40,7 +40,7 @@ func runCheck(cmd *cobra.Command, args []string) error {
 			return nil
 		})
 		if err != nil {
-			errs = append(errs, fmt.Errorf("failed to check %s: %w", path, err))
+			errs = append(errs, err)
 		}
 	}
 
