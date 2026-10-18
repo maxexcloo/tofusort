@@ -36,7 +36,7 @@ jobs:
       - name: Set Up Shared Tools & Tasks
         uses: maxexcloo/dotfiles/.github/actions/mise@main
         with:
-          tools: actionlint go python updatecli
+          tools: actionlint go updatecli
       - name: Run Checks
         run: mise run check
 
