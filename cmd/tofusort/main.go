@@ -13,7 +13,8 @@ var rootCmd = &cobra.Command{
 	SilenceUsage:  true,
 	Use:           "tofusort",
 	Long: `tofusort is a tool to sort OpenTofu/Terraform configuration files alphabetically.
-It sorts blocks by type, attributes within blocks, and preserves comments and formatting.`,
+It sorts blocks by type and attributes within blocks, keeps comments with their
+entries, and formats the result with the HCL formatter.`,
 }
 
 func init() {

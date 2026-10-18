@@ -14,7 +14,8 @@ var checkCmd = &cobra.Command{
 	Short: "Check if OpenTofu/Terraform files are sorted",
 	Use:   "check [file or directory]",
 	Long: `Check if OpenTofu/Terraform configuration files are already sorted.
-Returns exit code 0 if all files are sorted, 1 if any files need sorting.
+Returns exit code 0 if all files are sorted, 1 if any files need sorting
+or any input is invalid or unreadable.
 Useful for CI/CD pipelines to enforce sorted configuration files.`,
 }
 

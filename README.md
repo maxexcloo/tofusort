@@ -12,7 +12,11 @@ mise run build
 ```
 
 To install the binary into the configured Go binary directory, run
-`mise run install`.
+`mise run install`, or install it without cloning:
+
+```bash
+go install github.com/maxexcloo/tofusort/cmd/tofusort@latest
+```
 
 ## Usage
 
@@ -88,13 +92,18 @@ docker build -t tofusort .
 docker run --rm -v "$(pwd):/workspace" -w /workspace tofusort sort main.tf
 ```
 
+The Container workflow publishes AMD64 and ARM64 images when runtime or build
+inputs change on `main`, or when pushing a version tag. Metadata-only changes
+retain the required tests and skip image builds. Pull requests run Go tests, vet
+and image builds without publishing.
+
 ## Development
 
 Install the [shared Mise configuration](https://github.com/maxexcloo/dotfiles#shared-tools--tasks)
 before running local Mise tasks.
 
-`mise run check` runs Go vet, tests, gofmt verification and Updatecli manifest
-validation.
+`mise run check` runs actionlint, Go vet, tests, gofmt verification and
+Updatecli manifest validation.
 
 ```bash
 mise run check
@@ -109,7 +118,3 @@ mise exec -- go test ./internal/sorter -run '^$' -fuzz FuzzSortPreservesStructur
 
 Follow [AGENTS.md](AGENTS.md). See [architecture](docs/architecture.md) for the
 implementation and preservation tests. Licensed under [AGPL-3.0](LICENSE).
-
-The Container workflow publishes AMD64 and ARM64 images when runtime or build inputs
-change on `main`, or when pushing a version tag. Metadata-only changes retain the
-required tests and skip image builds. Pull requests run Go tests, vet and image builds without publishing.
