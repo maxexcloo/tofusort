@@ -266,3 +266,29 @@ func TestCommandsFollowExplicitDirectorySymlink(t *testing.T) {
 		})
 	}
 }
+
+func TestSortWritesLFForCRLFInput(t *testing.T) {
+	dryRun = false
+	inputs := map[string]string{"sorted.tf": "a = 2\r\nz = 1\r\n", "unsorted.tf": "z = 1\r\na = 2\r\n"}
+	for name, input := range inputs {
+		t.Run(name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), name)
+			if err := os.WriteFile(path, []byte(input), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if err := runCheck(nil, []string{path}); err == nil {
+				t.Fatal("check accepted CRLF input that sort would rewrite")
+			}
+			if err := runSort(nil, []string{path}); err != nil {
+				t.Fatal(err)
+			}
+			content, err := os.ReadFile(path)
+			if err != nil || string(content) != "a = 2\nz = 1\n" {
+				t.Fatalf("sort did not write sorted LF output: %q, %v", content, err)
+			}
+			if err := runCheck(nil, []string{path}); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}

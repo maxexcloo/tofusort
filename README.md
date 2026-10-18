@@ -55,7 +55,8 @@ that start with a dash. Explicit directory symlinks are followed, including with
 - **Formatting:** HCL's formatter handles indentation and alignment. Inline
   objects remain inline. The sorter separates attribute groups and blocks with
   blank lines; it does not rewrite literal or template contents or run regular
-  expressions over source text.
+  expressions over source text. CRLF line endings are normalised to LF, so
+  `check` reports CRLF files as unsorted until `sort` rewrites them.
 - **Objects:** Bare and quoted literal keys follow the same single-line-first
   rule, including objects inside functions, comprehensions and type constraints.
   Objects with computed or duplicate keys retain peer order; their independently

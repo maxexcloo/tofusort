@@ -35,3 +35,13 @@ other = 1
 		}
 	}
 }
+
+func TestParseFileNormalisesCRLF(t *testing.T) {
+	file, err := ParseFile([]byte("a = 1\r\nb = <<EOT\r\nx\r\nEOT\r\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "a = 1\nb = <<EOT\nx\nEOT\n"; string(file.Source) != want {
+		t.Fatalf("source = %q, want %q", file.Source, want)
+	}
+}
