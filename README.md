@@ -40,6 +40,7 @@ invalid or inaccessible inputs. Directory scans skip unsupported extensions;
 explicit unsupported file arguments produce errors. Use `--` before filenames
 that start with a dash. Explicit directory symlinks are followed, including with
 `--recursive`; directory symlinks encountered during a scan are not traversed.
+Recursive scans skip `.git` and `.terraform` directories below the supplied root.
 
 ## Sorting Rules
 

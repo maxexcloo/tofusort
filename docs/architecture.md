@@ -56,6 +56,7 @@ Independent paths and files continue after a failure. `check` compares the
 original bytes with sorted output and never writes. Dry-run only reports paths.
 Explicit directory symlinks are followed for both shallow and recursive scans;
 directory symlinks encountered below the supplied root are not traversed.
+Recursive scans skip `.git` and `.terraform` directories below the root.
 Writes resolve symbolic links and use a temporary sibling, preserve ordinary
 permission bits, sync and rename. Renaming creates a new inode, so hard links,
 ownership and extended metadata are not preserved.

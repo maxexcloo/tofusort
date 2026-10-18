@@ -292,3 +292,27 @@ func TestSortWritesLFForCRLFInput(t *testing.T) {
 		})
 	}
 }
+
+func TestRecursiveScanSkipsToolDirectories(t *testing.T) {
+	recursive = true
+	t.Cleanup(func() { recursive = false })
+	root := filepath.Join(t.TempDir(), ".terraform")
+	for _, dir := range []string{".git", ".terraform/modules", "nested/.git"} {
+		path := filepath.Join(root, dir)
+		if err := os.MkdirAll(path, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(path, "main.tf"), []byte("z = 1\na = 2\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := runCheck(nil, []string{root}); err != nil {
+		t.Fatalf("check scanned a skipped directory: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "main.tf"), []byte("z = 1\na = 2\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := runCheck(nil, []string{root}); err == nil || !strings.Contains(err.Error(), "1 unsorted") {
+		t.Fatalf("check skipped the supplied root: %v", err)
+	}
+}

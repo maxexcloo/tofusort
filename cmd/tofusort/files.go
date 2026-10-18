@@ -46,9 +46,13 @@ func visitDirectory(dir, action string, visit func(string) error) error {
 				errs = append(errs, fmt.Errorf("failed to access %s: %w", path, err))
 				return nil
 			}
-			if !d.IsDir() {
-				visitFile(path)
+			if d.IsDir() {
+				if path != target && (d.Name() == ".git" || d.Name() == ".terraform") {
+					return fs.SkipDir
+				}
+				return nil
 			}
+			visitFile(path)
 			return nil
 		})
 		if err != nil {
