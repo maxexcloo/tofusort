@@ -53,12 +53,13 @@ Recursive scans skip `.git` and `.terraform` directories below the supplied root
   those peers in place. Detached section comments are boundaries:
   entries on opposite sides are not mixed. File headers and footers separated
   from entries by blank lines remain in place.
-- **Formatting:** HCL's formatter handles indentation and alignment. Inline
-  objects remain inline; entries in multiline objects keep their own trailing
-  commas. The sorter separates attribute groups and blocks with
-  blank lines; it does not rewrite literal or template contents or run regular
-  expressions over source text. CRLF line endings are normalised to LF, so
-  `check` reports CRLF files as unsorted until `sort` rewrites them.
+- **Formatting:** HCL's formatter handles indentation and alignment. Objects
+  stay inline when no newline separates their entries, even if a value spans
+  lines; entries in multiline objects keep their own trailing commas. The sorter
+  separates attribute groups and blocks with blank lines; it does not rewrite
+  literal or template contents or run regular expressions over source text.
+  CRLF line endings are normalised to LF, so `check` reports CRLF files as
+  unsorted until `sort` rewrites them.
 - **Objects:** Bare and quoted literal keys follow the same single-line-first
   rule, including objects inside functions, comprehensions and type constraints.
   Objects with computed or duplicate keys retain peer order; their independently

@@ -301,7 +301,14 @@ func (d *document) reorder(start, end int, entries []entry, object bool) {
 		return
 	}
 	sort.Slice(entries, func(i, j int) bool { return entries[i].start < entries[j].start })
-	inline := object && !bytes.Contains(d.file.Source[start:end], []byte("\n"))
+	// Object layout follows the gaps around entries, not newlines inside values.
+	inline := object
+	previous := start
+	for _, item := range entries {
+		inline = inline && !bytes.Contains(d.file.Source[previous:item.start], []byte("\n"))
+		previous = item.end
+	}
+	inline = inline && !bytes.Contains(d.file.Source[previous:end], []byte("\n"))
 	if object && !inline {
 		// Newline-separated entries keep their own trailing comma.
 		for i := range entries {

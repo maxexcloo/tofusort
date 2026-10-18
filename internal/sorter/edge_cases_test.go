@@ -445,3 +445,11 @@ func TestMultilineObjectEntriesKeepCommas(t *testing.T) {
 		}
 	}
 }
+
+func TestInlineObjectWithMultilineValueStaysInline(t *testing.T) {
+	input := "x = { b = {\n  y = 1\n}, a = 2 }\n"
+	expected := "x = { a = 2, b = {\n  y = 1\n} }\n"
+	if output := verifyPreservation(t, []byte(input), Options{}); string(output) != expected {
+		t.Fatalf("inline object layout changed:\n%s", output)
+	}
+}
