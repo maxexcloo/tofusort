@@ -31,8 +31,9 @@ applies before single-line and multiline grouping and respects comment boundarie
 computed keys and duplicate keys. List elements retain their original order.
 
 Body attributes use single-line and multiline value groups, then alphabetical
-names. Resource, data, module and provider bodies put `count` and `for_each`
-first and `depends_on` after ordinary attributes. Nested blocks follow attributes
+names. Top-level resource, data, module and provider bodies put their leading
+meta-arguments first as one group, in the order defined by `leadingMeta`, and
+`depends_on` after ordinary attributes. Nested blocks follow attributes
 in their original order, including lifecycle, provisioner, validation, static and
 dynamic blocks. Root blocks use the documented type priority and labels; unknown
 root blocks are fixed boundaries. All equal sort keys retain source order.

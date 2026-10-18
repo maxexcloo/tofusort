@@ -45,9 +45,11 @@ Recursive scans skip `.git` and `.terraform` directories below the supplied root
 ## Sorting Rules
 
 - **Attributes:** Single-line values first, then multiline values, alphabetical
-  within each group. In resource, data, module and provider bodies, `count` and
-  `for_each` lead; `depends_on` follows ordinary attributes. Nested blocks follow
-  attributes and retain their original order.
+  within each group. Following the HashiCorp style guide, meta-arguments lead
+  as one group: `source`, `version`, `count` and `for_each` in modules; `count`,
+  `for_each` and `provider` in resources and data sources; `count` and
+  `for_each` in providers. `depends_on` follows ordinary attributes in these
+  bodies. Nested blocks follow attributes and retain their original order.
 - **Comments:** Immediately preceding comment lines and same-line trailing
   comments stay with their entry. Ambiguous comments between inline peers keep
   those peers in place. Detached section comments are boundaries:
