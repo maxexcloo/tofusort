@@ -20,7 +20,7 @@ Useful for CI/CD pipelines to enforce sorted configuration files.`,
 }
 
 func init() {
-	checkCmd.Flags().BoolVarP(&recursive, "recursive", "r", false, "Process directories recursively")
+	addRecursiveFlag(checkCmd)
 	rootCmd.AddCommand(checkCmd)
 }
 

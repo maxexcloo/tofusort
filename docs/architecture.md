@@ -78,5 +78,10 @@ valid output and idempotence. Constant-expression regressions also compare
 actual evaluated values. `TOFUSORT_CORPUS` enables the same checks against a local
 HCL directory without copying its contents into the repository or modifying it.
 
+`hclwrite.Format` joins a number literal and a separated traversal into one
+number, so `A=0 .0` becomes `A = 0.0`, changing a legacy index into a literal.
+This upstream limitation is accepted, and fuzzing skips number literals followed
+by a dot.
+
 Legacy sorting examples ignore blank-line differences; dedicated formatting and
 comment tests assert exact output. Run `mise run check` before handoff.
