@@ -45,3 +45,13 @@ func TestParseFileNormalisesCRLF(t *testing.T) {
 		t.Fatalf("source = %q, want %q", file.Source, want)
 	}
 }
+
+func TestParseFileNormalisesLoneCR(t *testing.T) {
+	file, err := ParseFile([]byte("a = 1\rb = 2\r\r\nc = 3\r"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "a = 1\nb = 2\n\nc = 3\n"; string(file.Source) != want {
+		t.Fatalf("source = %q, want %q", file.Source, want)
+	}
+}

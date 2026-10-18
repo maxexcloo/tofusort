@@ -64,8 +64,8 @@ Recursive scans skip `.git` and `.terraform` directories below the supplied root
   lines; entries in multiline objects keep their own trailing commas. The sorter
   separates attribute groups and blocks with blank lines; it does not rewrite
   literal or template contents or run regular expressions over source text.
-  CRLF line endings are normalised to LF, so `check` reports CRLF files as
-  unsorted until `sort` rewrites them.
+  CRLF and lone CR line endings are normalised to LF, so `check` reports such
+  files as unsorted until `sort` rewrites them.
 - **Objects:** Bare and quoted literal keys follow the same single-line-first
   rule, including objects inside functions, comprehensions and type constraints.
   Objects with computed or duplicate keys retain peer order; their independently

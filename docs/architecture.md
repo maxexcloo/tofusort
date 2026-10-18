@@ -10,7 +10,7 @@ braces itself.
   checks and dry-runs, and file replacement. Both commands share file discovery
   and the read, parse, sort and format path.
 - `internal/parser/`: `hclsyntax.ParseConfig` produces the syntax tree and
-  `LexConfig` identifies comments. Parsing normalises CRLF line endings to LF
+  `LexConfig` identifies comments. Parsing normalises CRLF and lone CR line endings to LF
   first. A parsed file holds source bytes, its body and lexer tokens. `hclwrite.Format` handles indentation and alignment; non-empty
   output receives a final newline.
 - `internal/sorter/`: Sorting policy, source-range edits and preservation tests.
