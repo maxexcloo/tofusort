@@ -440,25 +440,7 @@ func TestProxmoxProviderForEach(t *testing.T) {
 
 // TestComplexTfvarsFile tests .tfvars file sorting
 func TestComplexTfvarsFile(t *testing.T) {
-	input := `tags = ["production", "infrastructure"]
-
-terraform = {
-  b2 = {
-    application_key    = "production_key"
-    application_key_id = "prod_key_id"
-  }
-  
-  cloudflare = {
-    account_id = "cf_account_123"
-    api_key    = "cf_api_key_456"
-  }
-}
-
-default = {
-  email        = "admin@example.com"
-  name         = "Administrator"
-  organisation = "example-org"
-}`
+	input := readFixture(t, "complex_tfvars.tfvars")
 
 	expected := `tags = ["production", "infrastructure"]
 
@@ -486,43 +468,7 @@ terraform = {
 
 // TestNestedLocalsBlocks tests complex locals with nested structures
 func TestNestedLocalsBlocks(t *testing.T) {
-	input := `locals {
-  services_merged = {
-    for k, service in local.services_all : k => merge(
-      service,
-      {
-        # DNS configuration
-        dns_content             = local.services_dns_config[k].content
-        enable_cloudflare_proxy = contains(try(local.services_computations[k].server_config.flags, []), "cloudflare_proxy")
-        enable_dns              = local.services_computations[k].has_dns
-        
-        # FQDN and URL
-        fqdn = local.services_fqdn_config[k].fqdn
-        url = local.services_computations[k].has_dns || local.services_computations[k].has_server ? (
-          "${try(service.ssl, true) ? "https://" : "http://"}${local.services_fqdn_config[k].base_hostname}"
-        ) : null
-      }
-    )
-  }
-
-  output_servers = nonsensitive(jsondecode(data.tfe_outputs.infrastructure.values.servers))
-  
-  config_outputs = merge(
-    {
-      for k, service in local.services_merged : k => {
-        "/app/config.yaml" = templatefile(
-          "templates/gatus/config.yaml",
-          {
-            default   = var.default
-            gatus     = service
-            terraform = var.terraform
-          }
-        )
-      }
-      if try(service.service, "") == "gatus"
-    }
-  )
-}`
+	input := readFixture(t, "nested_locals.tf")
 
 	// For locals, we expect alphabetical sorting of the top-level keys
 	expected := `locals {
