@@ -17,8 +17,9 @@ on:
 permissions:
   contents: read
 
+# A newer push supersedes an older run; release tags always finish.
 concurrency:
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
   group: container-${{ github.ref }}
 
 env:
@@ -52,8 +53,6 @@ jobs:
         uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - name: Set Up QEMU
-        uses: docker/setup-qemu-action@v4
       - name: Set Up Docker Buildx
         uses: docker/setup-buildx-action@v4
       - name: Log In to GHCR
