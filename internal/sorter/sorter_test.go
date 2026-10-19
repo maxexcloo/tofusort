@@ -1,6 +1,8 @@
 package sorter
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -182,22 +184,7 @@ output "instance_id" {
 }
 
 func TestMetaArgumentOrdering(t *testing.T) {
-	input := `resource "aws_instance" "example" {
-  ami           = "ami-12345"
-  instance_type = "t2.micro"
-  
-  lifecycle {
-    create_before_destroy = true
-  }
-  
-  depends_on = [aws_security_group.example]
-  
-  count = 3
-  
-  tags = {
-    Name = "test"
-  }
-}`
+	input := readFixture(t, "meta_argument_ordering.tf")
 
 	expected := `resource "aws_instance" "example" {
   count = 3
@@ -353,29 +340,7 @@ func TestArrayObjectSorting(t *testing.T) {
 }
 
 func TestSingleLineArrayGrouping(t *testing.T) {
-	input := `resource "aws_instance" "example" {
-  instance_type = "t2.micro"
-  ami           = "ami-12345"
-  
-  security_groups = ["default", "web"]
-  
-  availability_zones = ["us-west-2a"]
-  
-  tags = {
-    Environment = "production"
-    Application = "web"
-  }
-  
-  root_block_device {
-    volume_size = 20
-    volume_type = "gp3"
-  }
-  
-  vpc_security_group_ids = [
-    "sg-123",
-    "sg-456"
-  ]
-}`
+	input := readFixture(t, "single_line_array_grouping.tf")
 
 	expected := `resource "aws_instance" "example" {
   ami                = "ami-12345"
@@ -427,30 +392,7 @@ func TestTypeObjectSorting(t *testing.T) {
 }
 
 func TestTfvarsFileSorting(t *testing.T) {
-	input := `region = "us-west-2"
-
-instance_config = {
-  type = "t2.micro"
-  ami  = "ami-12345"
-  
-  security_groups = ["default"]
-  
-  tags = {
-    Owner       = "team"
-    Environment = "dev"
-  }
-}
-
-servers = [
-  {
-    region = "us-west"
-    name   = "web1"
-  },
-  {
-    name   = "web2"
-    region = "us-east"
-  }
-]`
+	input := readFixture(t, "tfvars_file.tfvars")
 
 	expected := `region = "us-west-2"
 
@@ -481,23 +423,7 @@ servers = [
 }
 
 func TestComplexExpressionPreservation(t *testing.T) {
-	input := `locals {
-  servers = {
-    for server in var.server_list :
-    server.name => {
-      cpu    = server.cpu
-      region = server.region
-    }
-  }
-  
-  tags = merge(
-    var.common_tags,
-    {
-      Environment = "prod"
-      Application = "web"
-    }
-  )
-}`
+	input := readFixture(t, "complex_expression_preservation.tf")
 
 	expected := `locals {
   servers = {
@@ -519,6 +445,17 @@ func TestComplexExpressionPreservation(t *testing.T) {
 `
 
 	testSorting(t, input, expected)
+}
+
+// readFixture returns an input kept in testdata because it needs
+// whitespace-only lines that the repository whitespace check would reject.
+func readFixture(t *testing.T, name string) string {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join("testdata", name))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(data)
 }
 
 func testSorting(t *testing.T, input, expected string) {
