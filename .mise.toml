@@ -6,7 +6,14 @@ go = "latest"
 run = "go build -o tofusort ./cmd/tofusort"
 
 [tasks.check]
-depends = ["check:actions", "check:updates", "lint", "test"]
+depends = [
+  "check:actions",
+  "check:mise",
+  "check:updates",
+  "check:whitespace",
+  "lint",
+  "test",
+]
 run = """
 unformatted="$(gofmt -l .)"
 if [[ -n "$unformatted" ]]; then
