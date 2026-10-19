@@ -103,7 +103,7 @@ Install the [shared Mise configuration](https://github.com/maxexcloo/dotfiles#sh
 before running local Mise tasks.
 
 `mise run check` runs actionlint, Go vet, tests, gofmt verification and
-Updatecli manifest validation.
+Renovate configuration validation.
 
 ```bash
 mise run check

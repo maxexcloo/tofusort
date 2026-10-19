@@ -1,5 +1,5 @@
 *.md
 .git*
 .mise.toml
-.updatecli.d/
 /tofusort
+renovate.json5
