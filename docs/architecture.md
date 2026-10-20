@@ -1,8 +1,8 @@
 # Architecture
 
-`tofusort` uses HCL's parser to locate complete entries and its formatter to lay
-out the result. It does not implement an expression parser or scan for matching
-braces itself.
+`tofusort` uses HCL's parser to find complete entries and HCL's formatter to lay
+out the result. It has no expression parser of its own and doesn't scan for
+matching braces.
 
 ## Components
 
@@ -18,53 +18,56 @@ braces itself.
 
 ## Sorting
 
-The sorter walks each body and expression. Literal-key object constructors are
-processed from the innermost outwards, including constructors in function
-arguments, comprehensions and type constraints. Source ranges identify whole
-key/value pairs, so operators, traversals, quoted keys and nested expressions do
-not need custom token parsing. Computed and duplicate keys prevent peer sorting.
-Objects inside string templates are left alone.
+The sorter walks each body and expression. Object constructors with literal
+keys are processed from the innermost outwards, including ones in function
+arguments, comprehensions and type constraints. Source ranges mark whole
+key/value pairs, so operators, traversals, quoted keys and nested expressions
+don't need custom token parsing. Computed and duplicate keys stop peers from being
+sorted. Objects inside string templates are left alone.
 
-Both commands share the opt-in `--identifiers-first` policy. It gives `type`,
-`name`, then `id` precedence in objects directly inside list literals, including
-parenthesised objects. Other objects use the default policy. Identifier precedence
-applies before single-line and multiline grouping and respects comment boundaries,
-computed keys and duplicate keys. List elements retain their original order.
+Both commands support the opt-in `--identifiers-first` policy. It puts `type`,
+`name`, then `id` first in objects directly inside list literals, including
+parenthesised objects. Other objects use the default policy. Identifier order is
+applied before single-line and multiline grouping and respects comment
+boundaries, computed keys and duplicate keys. List elements keep their original
+order.
 
-Body attributes use single-line and multiline value groups, then alphabetical
-names. Top-level resource, data, module and provider bodies put their leading
-meta-arguments first as one group, in the order defined by `leadingMeta`, and
-`depends_on` after ordinary attributes. Nested blocks follow attributes
+Body attributes are grouped by single-line and multiline values, then sorted by
+name. Top-level resource, data, module and provider bodies put their leading
+meta-arguments first as one group, in the order set by `leadingMeta`, and
+`depends_on` after the ordinary attributes. Nested blocks follow the attributes
 in their original order, including lifecycle, provisioner, validation, static and
-dynamic blocks. Root blocks use the documented type priority and labels; unknown
-root blocks are fixed boundaries. All equal sort keys retain source order.
+dynamic blocks. Root blocks use the documented type priority and labels, and
+unknown root blocks are fixed boundaries. Equal sort keys always keep source
+order.
 
-Same-line trailing comments and immediately preceding comment lines are attached
-to complete entries. Ambiguous comments between inline peers keep those peers
-in place. Detached comments delimit sortable runs. Whitespace and comments
-outside those runs stay in place. Objects stay inline with comma separators
-when no newline separates their entries, even if a value spans lines; multiline
-objects use newlines, and each entry keeps its own trailing comma. Comment
-attachment searches the token stream for adjacent gaps rather than scanning the
-whole file for each entry. HCL formats the resulting source once, within the
-sorter.
+Trailing comments on the same line and comment lines directly above an entry are
+attached to that entry. An ambiguous comment between inline peers keeps those
+peers in place. Detached comments mark the edges of sortable runs, and whitespace
+and comments outside those runs stay where they are. Objects stay inline with
+comma separators when no newline separates their entries, even if a value spans
+lines. Multiline objects use newlines, and each entry keeps its own trailing
+comma. To attach comments, the sorter searches the token stream for adjacent gaps
+instead of scanning the whole file for each entry. HCL formats the resulting
+source once, inside the sorter.
 
-Edits operate on the original byte offsets. Replacing a parent range consumes
-its child edits. The complete output is reparsed both before and after formatting;
-the caller's parsed file changes only after success. Syntax validation prevents
-invalid output from being written, but is not a proof of semantic equivalence.
+Edits work on the original byte offsets. Replacing a parent range absorbs its
+child edits. The complete output is parsed again before and after formatting, and
+the caller's parsed file only changes once that succeeds. Syntax validation stops
+invalid output from being written, but it doesn't prove the result means the same
+thing.
 
 ## Files & Errors
 
-Independent paths and files continue after a failure. `check` compares the
-original bytes with sorted output and never writes. Dry-run only reports paths.
-Explicit directory symlinks are followed for both shallow and recursive scans,
-and files are reported under the supplied path;
-directory symlinks encountered below the supplied root are not traversed.
-Recursive scans skip `.git` and `.terraform` directories below the root.
-Writes resolve symbolic links and use a temporary sibling, preserve ordinary
-permission bits, sync and rename. Renaming creates a new inode, so hard links,
-ownership and extended metadata are not preserved.
+A failure in one path or file doesn't stop the others. `check` compares the
+original bytes with the sorted output and never writes. Dry-run only reports
+paths. Directory symlinks passed in directly are followed for both shallow and
+recursive scans, and files are reported under the given path. Directory symlinks
+found below the given root aren't followed. Recursive scans skip `.git` and
+`.terraform` directories below the root. Writes resolve symbolic links, write a
+temporary file next to the target, keep ordinary permission bits, sync and
+rename. Renaming creates a new inode, so hard links, ownership and extended
+metadata aren't kept.
 
 ## Verification
 
@@ -72,16 +75,16 @@ Tests cover explicit sorting results, comment attachment and section boundaries,
 quoted and computed keys, duplicate-key semantics, Unicode, heredocs, templates,
 functions, comprehensions, ordered blocks and non-mutating CLI behaviour.
 
-An independent structural comparison ignores source positions and permitted
-mapping order while retaining expression structure, values, arguments and nested
-block order. Every corpus and fuzz case checks this structure, comment contents,
-valid output and idempotence. Constant-expression regressions also compare
-actual evaluated values. `TOFUSORT_CORPUS` enables the same checks against a local
-HCL directory without copying its contents into the repository or modifying it.
+A separate structural comparison ignores source positions and allowed mapping
+order but keeps expression structure, values, arguments and nested block order.
+Every corpus and fuzz case checks this structure, comment contents, valid output
+and idempotence. Constant-expression regression tests also compare the actual
+evaluated values. `TOFUSORT_CORPUS` runs the same checks against a local HCL
+directory without copying its contents into the repository or changing it.
 
 `hclwrite.Format` joins a number literal and a separated traversal into one
-number, so `A=0 .0` becomes `A = 0.0`, changing a legacy index into a literal.
-This upstream limitation is accepted, and fuzzing skips number literals followed
+number, so `A=0 .0` becomes `A = 0.0` and a legacy index turns into a literal.
+I've accepted this upstream limitation, and fuzzing skips number literals followed
 by a dot.
 
 Legacy sorting examples ignore blank-line differences; dedicated formatting and

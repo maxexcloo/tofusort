@@ -1,7 +1,7 @@
 # tofusort
 
-Sort OpenTofu and Terraform HCL files with Go and the native HCL parser.
-Supports `.tf` and `.tfvars`; JSON configuration is not supported.
+Sorts OpenTofu and Terraform HCL files. It's written in Go and uses the native
+HCL parser. It handles `.tf` and `.tfvars` files, but not JSON configuration.
 
 ## Installation
 
@@ -38,52 +38,58 @@ go install github.com/maxexcloo/tofusort/cmd/tofusort@latest
 ./tofusort check --identifiers-first main.tf
 ```
 
-Both commands accept multiple paths and continue after individual failures,
-reporting all errors with file context. `check` exits non-zero for unsorted,
-invalid or inaccessible inputs. Directory scans skip unsupported extensions;
-explicit unsupported file arguments produce errors. Use `--` before filenames
-that start with a dash. Explicit directory symlinks are followed, including with
-`--recursive`; directory symlinks encountered during a scan are not traversed.
-Recursive scans skip `.git` and `.terraform` directories below the supplied root.
+Both commands take multiple paths and keep going when one fails, then report
+every error with its file. `check` exits non-zero for unsorted, invalid or
+inaccessible inputs. Directory scans skip unsupported extensions, but naming an
+unsupported file directly is an error. Use `--` before filenames that start with
+a dash. Directory symlinks you pass in are followed, including with
+`--recursive`, but directory symlinks found during a scan aren't. Recursive scans
+skip `.git` and `.terraform` directories below the given root.
 
 ## Sorting Rules
 
-- **Attributes:** Single-line values first, then multiline values, alphabetical
-  within each group. Following the HashiCorp style guide, meta-arguments lead
-  as one group: `source`, `version`, `count` and `for_each` in modules; `count`,
-  `for_each` and `provider` in resources and data sources; `count` and
-  `for_each` in providers. `depends_on` follows ordinary attributes in these
-  bodies. Nested blocks follow attributes and retain their original order.
-- **Comments:** Immediately preceding comment lines and same-line trailing
-  comments stay with their entry. Ambiguous comments between inline peers keep
-  those peers in place. Detached section comments are boundaries:
-  entries on opposite sides are not mixed. File headers and footers separated
-  from entries by blank lines remain in place.
-- **Formatting:** HCL's formatter handles indentation and alignment. Objects
-  stay inline when no newline separates their entries, even if a value spans
-  lines; entries in multiline objects keep their own trailing commas. The sorter
-  separates attribute groups and blocks with blank lines; it does not rewrite
-  literal or template contents or run regular expressions over source text.
-  CRLF and lone CR line endings are normalised to LF, so `check` reports such
-  files as unsorted until `sort` rewrites them.
-- **Objects:** Bare and quoted literal keys follow the same single-line-first
-  rule, including objects inside functions, comprehensions and type constraints.
-  Objects with computed or duplicate keys retain peer order; their independently
-  sortable child objects can still be sorted. With `--identifiers-first`, objects
-  directly inside list literals put `type`, `name`, then `id` before other keys,
-  regardless of value layout. Other object keys keep their usual grouping.
-  Comment boundaries and list-element order are preserved.
-- **Order preservation:** List elements, function arguments, nested blocks and
-  expressions inside string templates retain their order. Unknown top-level
-  block types remain fixed boundaries, so procedural constructs are not shuffled.
-- **Top-level blocks:** Recognised types follow `terraform`, `provider`,
-  `variable`, `locals`, `data`, `resource`, `module`, `output`, then alphabetical
-  labels within each type. Equal labels retain source order.
+Attributes with single-line values come first, then multiline values, sorted
+alphabetically within each group. Following the HashiCorp style guide,
+meta-arguments go first as one group: `source`, `version`, `count` and
+`for_each` in modules; `count`, `for_each` and `provider` in resources and data
+sources; `count` and `for_each` in providers. `depends_on` goes after the
+ordinary attributes in these bodies. Nested blocks come after attributes and keep
+their original order.
 
-Output is parsed again before any write. A temporary sibling file is written,
-flushed and renamed over the original; ordinary permission bits and symbolic
-links are preserved. Replacement creates a new inode and does not preserve
-hard links, ownership or extended metadata.
+Comment lines directly above an entry and trailing comments on the same line stay
+with that entry. An ambiguous comment between inline peers keeps those peers in
+place. Detached section comments act as boundaries, so entries on either side
+are never mixed. File headers and footers separated from entries by blank lines
+stay where they are.
+
+HCL's formatter handles indentation and alignment. Objects stay inline when no
+newline separates their entries, even if a value spans lines, and entries in
+multiline objects keep their own trailing commas. The sorter puts blank lines
+between attribute groups and blocks. It doesn't rewrite literal or template
+contents or run regular expressions over source text. CRLF and lone CR line
+endings are normalised to LF, so `check` reports those files as unsorted until
+`sort` rewrites them.
+
+Bare and quoted literal object keys follow the same single-line-first rule,
+including objects inside functions, comprehensions and type constraints. Objects
+with computed or duplicate keys keep their peer order, though any child objects
+that can be sorted on their own still are. With `--identifiers-first`, objects
+directly inside list literals put `type`, `name`, then `id` before other keys,
+whatever the value layout. Other object keys keep their usual grouping, and
+comment boundaries and list element order are kept.
+
+List elements, function arguments, nested blocks and expressions inside string
+templates keep their order. Unknown top-level block types stay put as fixed
+boundaries, so procedural constructs aren't shuffled.
+
+Recognised top-level blocks are ordered `terraform`, `provider`, `variable`,
+`locals`, `data`, `resource`, `module`, `output`, then alphabetically by label
+within each type. Equal labels keep their source order.
+
+Output is parsed again before anything is written. tofusort writes a temporary
+file next to the original, flushes it and renames it over the original, keeping
+ordinary permission bits and symbolic links. The replacement is a new inode, so
+hard links, ownership and extended metadata aren't kept.
 
 ## Docker
 
@@ -93,9 +99,9 @@ docker run --rm -v "$(pwd):/workspace" -w /workspace tofusort sort main.tf
 ```
 
 The Container workflow runs checks and publishes AMD64 and ARM64 images for
-pushes to `main` and version tags. Pushes to `main` that only change Markdown,
-`.gitignore` or `LICENSE` skip the workflow. Pull requests run the same checks
-and image build without publishing.
+pushes to `main` and version tags. Pushes to `main` that only touch Markdown,
+`.gitignore` or `LICENSE` skip it. Pull requests run the same checks and image
+build without publishing.
 
 ## Development
 
