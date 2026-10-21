@@ -17,7 +17,7 @@ depends = [
 ]
 run = """
 unformatted="$(gofmt -l .)"
-if [[ -n "$unformatted" ]]; then
+if [ -n "$unformatted" ]; then
   echo "Files require gofmt:"
   echo "$unformatted"
   exit 1

@@ -108,8 +108,9 @@ build without publishing.
 Install the [shared Mise configuration](https://github.com/maxexcloo/dotfiles#shared-tools--tasks)
 before running local Mise tasks.
 
-`mise run check` runs actionlint, Go vet, tests, gofmt verification and
-Renovate configuration validation.
+`mise run check` runs the shared checks (actionlint, Mise and Oxfmt
+formatting, whitespace and Renovate validation) plus Go vet, tests and gofmt
+verification.
 
 ```bash
 mise run check

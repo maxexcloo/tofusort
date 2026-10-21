@@ -25,3 +25,7 @@
 - Skip `.git` and `.terraform` directories below the root in recursive scans.
 - Order leading meta-arguments per the HashiCorp style guide, as defined by
   `leadingMeta` in `internal/sorter/sorter.go`.
+
+## Verification
+
+Run `mise run check`.
