@@ -37,7 +37,7 @@ jobs:
       - name: Set Up Shared Tools & Tasks
         uses: maxexcloo/dotfiles/.github/actions/mise@main
         with:
-          tools: actionlint go node@24 npm:renovate
+          tools: actionlint go node@24 npm:renovate oxfmt
       - name: Run Checks
         run: mise run check
 

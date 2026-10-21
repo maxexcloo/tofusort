@@ -9,6 +9,7 @@ run = "go build -o tofusort ./cmd/tofusort"
 depends = [
   "check:actions",
   "check:mise",
+  "check:oxfmt",
   "check:updates",
   "check:whitespace",
   "lint",
@@ -27,6 +28,7 @@ fi
 run = "rm -f tofusort"
 
 [tasks.fmt]
+depends = ["fmt:mise", "fmt:oxfmt"]
 run = "go fmt ./..."
 
 [tasks.install]
