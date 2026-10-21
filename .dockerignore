@@ -1,4 +1,6 @@
-*.md
+**/*.md
+**/*_test.go
+**/testdata/
 .git*
 .mise.toml
 /tofusort
