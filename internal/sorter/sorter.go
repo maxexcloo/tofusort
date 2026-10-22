@@ -9,7 +9,6 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/maxexcloo/tofusort/internal/parser"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -56,21 +55,21 @@ type entry struct {
 	block      bool
 }
 type document struct {
-	file    *parser.File
+	file    *File
 	edits   []edit
 	options Options
 }
 
-func SortFile(file *parser.File, options Options) error {
+func SortFile(file *File, options Options) error {
 	d := &document{file: file, options: options}
 	d.body(file.Body, 0, len(file.Source), true, nil)
 	output := d.render(0, len(file.Source))
-	sorted, err := parser.ParseFile(output)
+	sorted, err := ParseFile(output)
 	if err != nil {
 		return fmt.Errorf("sort produced invalid HCL; original file unchanged: %w", err)
 	}
-	formatted := parser.FormatFile(sorted)
-	sorted, err = parser.ParseFile(formatted)
+	formatted := format(sorted.Source)
+	sorted, err = ParseFile(formatted)
 	if err != nil {
 		return fmt.Errorf("format produced invalid HCL; original file unchanged: %w", err)
 	}
@@ -255,7 +254,7 @@ func (d *document) attach(entries []entry, start, end int, object bool) []entry 
 				continue
 			}
 			gap := d.file.Source[entries[i].end:token.Range.Start.Byte]
-			if bytes.ContainsAny(gap, "\r\n") {
+			if bytes.Contains(gap, []byte("\n")) {
 				break
 			}
 			// A block comment between two entries on one line has no clear owner.
@@ -364,7 +363,7 @@ func (d *document) reorder(start, end int, entries []entry, object bool) {
 			}
 			out.Write(bytes.TrimSuffix(item.content, []byte("\n")))
 		}
-		trailing := bytes.TrimLeft(d.file.Source[entries[last-1].end:end], " \t\r")
+		trailing := bytes.TrimLeft(d.file.Source[entries[last-1].end:end], " \t")
 		if bytes.HasSuffix(d.file.Source[entries[last-1].start:entries[last-1].end], []byte("\n")) ||
 			(bytes.HasSuffix(run[len(run)-1].content, []byte("\n")) && !bytes.HasPrefix(trailing, []byte("\n"))) {
 			out.WriteByte('\n')
@@ -382,7 +381,7 @@ func (d *document) reorder(start, end int, entries []entry, object bool) {
 
 func whitespace(src []byte, object bool) bool {
 	if object {
-		return len(bytes.Trim(src, " \t\r\n,")) == 0
+		return len(bytes.Trim(src, " \t\n,")) == 0
 	}
 	return len(bytes.TrimSpace(src)) == 0
 }

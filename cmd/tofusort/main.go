@@ -19,6 +19,7 @@ entries, and formats the result with the HCL formatter.`,
 
 func init() {
 	rootCmd.PersistentFlags().BoolVar(&sortOptions.IdentifiersFirst, "identifiers-first", false, "Put type, name and id first in list-item objects")
+	rootCmd.PersistentFlags().BoolVarP(&recursive, "recursive", "r", false, "Process directories recursively")
 }
 
 func main() {

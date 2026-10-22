@@ -23,7 +23,6 @@ Sorts blocks by type, then by name within type, and attributes within blocks.`,
 
 func init() {
 	sortCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Show what would be changed without modifying files")
-	addRecursiveFlag(sortCmd)
 	rootCmd.AddCommand(sortCmd)
 }
 

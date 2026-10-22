@@ -9,9 +9,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/maxexcloo/tofusort/internal/parser"
 	"github.com/maxexcloo/tofusort/internal/sorter"
-	"github.com/spf13/cobra"
 )
 
 var (
@@ -19,10 +17,6 @@ var (
 	sortOptions         sorter.Options
 	terraformExtensions = []string{".tf", ".tfvars"}
 )
-
-func addRecursiveFlag(cmd *cobra.Command) {
-	cmd.Flags().BoolVarP(&recursive, "recursive", "r", false, "Process directories recursively")
-}
 
 // visitPath returns errors that already name the file or directory involved.
 func visitPath(path, action string, visit func(string) error) error {
@@ -96,7 +90,7 @@ func sortedContent(path string) ([]byte, []byte, error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to read file: %w", err)
 	}
-	file, err := parser.ParseFile(content)
+	file, err := sorter.ParseFile(content)
 	if err != nil {
 		return nil, nil, err
 	}
