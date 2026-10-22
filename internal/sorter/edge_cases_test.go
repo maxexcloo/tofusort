@@ -3,10 +3,7 @@ package sorter
 import (
 	"bytes"
 	"fmt"
-	"strings"
 	"testing"
-
-	"github.com/maxexcloo/tofusort/internal/parser"
 )
 
 func TestEdgeCases(t *testing.T) {
@@ -126,33 +123,8 @@ func TestIdentifiersFirst(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			output := verifyPreservation(t, []byte(tt.input), tt.options)
-			want, err := parser.ParseFile([]byte(tt.want))
-			if err != nil {
-				t.Fatal(err)
-			}
-			if !bytes.Equal(output, parser.FormatFile(want)) {
-				t.Fatalf("unexpected order:\n%s\nwant:\n%s", output, parser.FormatFile(want))
-			}
-		})
-	}
-}
-
-func BenchmarkSortFlatAttributes(b *testing.B) {
-	for _, count := range []int{2000, 4000, 8000} {
-		var input strings.Builder
-		for i := count; i > 0; i-- {
-			fmt.Fprintf(&input, "attribute_%05d = %d\n", i, i)
-		}
-		source := []byte(input.String())
-		b.Run(fmt.Sprint(count), func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				file, err := parser.ParseFile(source)
-				if err != nil {
-					b.Fatal(err)
-				}
-				if err := SortFile(file, Options{}); err != nil {
-					b.Fatal(err)
-				}
+			if want := format([]byte(tt.want)); !bytes.Equal(output, want) {
+				t.Fatalf("unexpected order:\n%s\nwant:\n%s", output, want)
 			}
 		})
 	}
@@ -227,11 +199,7 @@ func TestSortObjectsInsideExpressions(t *testing.T) {
 	for _, pair := range cases {
 		t.Run(pair[0], func(t *testing.T) {
 			output := verifyPreservation(t, []byte(pair[0]), Options{})
-			expected, err := parser.ParseFile([]byte(pair[1]))
-			if err != nil {
-				t.Fatal(err)
-			}
-			if !bytes.Equal(output, parser.FormatFile(expected)) {
+			if !bytes.Equal(output, format([]byte(pair[1]))) {
 				t.Fatalf("unexpected output:\n%s", output)
 			}
 		})

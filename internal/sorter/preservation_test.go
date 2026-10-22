@@ -12,13 +12,12 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/maxexcloo/tofusort/internal/parser"
 	"github.com/zclconf/go-cty/cty"
 )
 
 func verifyPreservation(t testing.TB, input []byte, options Options) []byte {
 	t.Helper()
-	file, err := parser.ParseFile(input)
+	file, err := ParseFile(input)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -27,7 +26,7 @@ func verifyPreservation(t testing.TB, input []byte, options Options) []byte {
 	if err := SortFile(file, options); err != nil {
 		t.Fatal(err)
 	}
-	output := parser.FormatFile(file)
+	output := file.Source
 	if got := bodySignature(file.Body, true); got != before {
 		t.Fatalf("configuration meaning changed\nbefore: %s\nafter: %s", before, got)
 	}
@@ -37,7 +36,7 @@ func verifyPreservation(t testing.TB, input []byte, options Options) []byte {
 	if err := SortFile(file, options); err != nil {
 		t.Fatal(err)
 	}
-	if again := parser.FormatFile(file); !bytes.Equal(again, output) {
+	if again := file.Source; !bytes.Equal(again, output) {
 		t.Fatalf("not idempotent:\n%s\nthen:\n%s", output, again)
 	}
 	return output
@@ -131,7 +130,7 @@ func signature(v reflect.Value) string {
 	}
 }
 
-func commentSignature(file *parser.File) string {
+func commentSignature(file *File) string {
 	var comments []string
 	for _, token := range file.Tokens {
 		if token.Type == hclsyntax.TokenComment {
@@ -198,7 +197,7 @@ func FuzzSortPreservesStructure(f *testing.F) {
 		if len(src) > 100000 {
 			t.Skip()
 		}
-		file, err := parser.ParseFile([]byte(src))
+		file, err := ParseFile([]byte(src))
 		if err != nil || hasSpacedNumberTraversal(file.Tokens) {
 			t.Skip()
 		}
@@ -220,14 +219,14 @@ func TestSortPreservesValues(t *testing.T) {
 	}
 	for _, input := range inputs {
 		t.Run(input, func(t *testing.T) {
-			file, err := parser.ParseFile([]byte(input))
+			file, err := ParseFile([]byte(input))
 			if err != nil {
 				t.Fatal(err)
 			}
 			if err := SortFile(file, Options{}); err != nil {
 				t.Fatal(err)
 			}
-			output := parser.FormatFile(file)
+			output := file.Source
 			before, d := hclsyntax.ParseConfig([]byte(input), "input.tfvars", hcl.InitialPos)
 			if d.HasErrors() {
 				t.Fatal(d)
@@ -247,14 +246,14 @@ func TestSortPreservesValues(t *testing.T) {
 			if !want.RawEquals(got) {
 				t.Fatalf("value changed:\n%s", output)
 			}
-			again, err := parser.ParseFile(output)
+			again, err := ParseFile(output)
 			if err != nil {
 				t.Fatal(err)
 			}
 			if err := SortFile(again, Options{}); err != nil {
 				t.Fatal(err)
 			}
-			if second := parser.FormatFile(again); !bytes.Equal(output, second) {
+			if second := again.Source; !bytes.Equal(output, second) {
 				t.Fatalf("not idempotent:\n%s\nthen:\n%s", output, second)
 			}
 		})
@@ -276,7 +275,7 @@ func TestSortPreservesNestedBlockOrder(t *testing.T) {
   provisioner "remote-exec" { inline = ["second"] }
 }
 `
-	file, err := parser.ParseFile([]byte(input))
+	file, err := ParseFile([]byte(input))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -287,7 +286,7 @@ func TestSortPreservesNestedBlockOrder(t *testing.T) {
 	got := file.Body.Blocks[0].Body.Blocks
 	for i := range blocks {
 		if got[i].Type != blocks[i].Type || strings.Join(got[i].Labels, "\x00") != strings.Join(blocks[i].Labels, "\x00") {
-			t.Fatalf("nested blocks reordered:\n%s", parser.FormatFile(file))
+			t.Fatalf("nested blocks reordered:\n%s", file.Source)
 		}
 	}
 }

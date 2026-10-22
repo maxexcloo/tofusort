@@ -1,4 +1,4 @@
-package parser
+package sorter
 
 import (
 	"bytes"
@@ -31,8 +31,8 @@ func ParseFile(content []byte) (*File, error) {
 	return &File{Source: content, Body: file.Body.(*hclsyntax.Body), Tokens: tokens}, nil
 }
 
-func FormatFile(file *File) []byte {
-	content := hclwrite.Format(file.Source)
+func format(source []byte) []byte {
+	content := hclwrite.Format(source)
 	if len(content) > 0 && content[len(content)-1] != '\n' {
 		content = append(content, '\n')
 	}
