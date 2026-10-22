@@ -12,10 +12,10 @@ depends = [
   "check:oxfmt",
   "check:updates",
   "check:whitespace",
-  "lint",
   "test",
 ]
 run = """
+go vet ./...
 unformatted="$(gofmt -l .)"
 if [ -n "$unformatted" ]; then
   echo "Files require gofmt:"
@@ -24,18 +24,9 @@ if [ -n "$unformatted" ]; then
 fi
 """
 
-[tasks.cleanup]
-run = "rm -f tofusort"
-
 [tasks.fmt]
 depends = ["fmt:mise", "fmt:oxfmt"]
 run = "go fmt ./..."
-
-[tasks.install]
-run = "go install ./cmd/tofusort"
-
-[tasks.lint]
-run = "go vet ./..."
 
 [tasks.test]
 run = "go test ./..."

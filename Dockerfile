@@ -15,7 +15,6 @@ RUN CGO_ENABLED=0 GOARCH=$TARGETARCH GOOS=$TARGETOS go build -o /tofusort -trimp
 
 FROM scratch
 
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --from=builder /tofusort /tofusort
 
 ENTRYPOINT ["/tofusort"]
