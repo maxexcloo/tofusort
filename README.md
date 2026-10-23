@@ -113,4 +113,6 @@ TOFUSORT_CORPUS="$PWD/../homelab" mise exec -- go test ./internal/sorter -run Te
 mise exec -- go test ./internal/sorter -run '^$' -fuzz FuzzSortPreservesStructure -fuzztime=30s
 ```
 
-Follow [AGENTS.md](AGENTS.md). Licensed under [AGPL-3.0](LICENSE).
+## Licence
+
+AGPL-3.0 - see [LICENSE](LICENSE).

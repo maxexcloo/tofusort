@@ -8,13 +8,17 @@ run = "go build -o tofusort ./cmd/tofusort"
 [tasks.check]
 depends = [
   "check:actions",
+  "check:go",
   "check:mise",
   "check:oxfmt",
   "check:updates",
   "check:whitespace",
   "test",
 ]
+
+[tasks."check:go"]
 run = """
+set -eu
 go vet ./...
 unformatted="$(gofmt -l .)"
 if [ -n "$unformatted" ]; then
