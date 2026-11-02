@@ -12,7 +12,7 @@ var checkCmd = &cobra.Command{
 	Args:  cobra.MinimumNArgs(1),
 	RunE:  runCheck,
 	Short: "Check if OpenTofu/Terraform files are sorted",
-	Use:   "check [file or directory]",
+	Use:   "check <path>...",
 	Long: `Check if OpenTofu/Terraform configuration files are already sorted.
 Returns exit code 0 if all files are sorted, 1 if any files need sorting
 or any input is invalid or unreadable.
@@ -24,8 +24,8 @@ func init() {
 }
 
 func runCheck(cmd *cobra.Command, args []string) error {
-	var unsortedFiles []string
 	var errs []error
+	unsorted := 0
 
 	for _, path := range args {
 		err := visitPath(path, "check", func(path string) error {
@@ -34,7 +34,8 @@ func runCheck(cmd *cobra.Command, args []string) error {
 				return err
 			}
 			if !bytes.Equal(content, newContent) {
-				unsortedFiles = append(unsortedFiles, path)
+				fmt.Printf("Not sorted: %s\n", path)
+				unsorted++
 			}
 			return nil
 		})
@@ -43,10 +44,7 @@ func runCheck(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	if len(unsortedFiles) > 0 {
-		for _, file := range unsortedFiles {
-			fmt.Printf("Not sorted: %s\n", file)
-		}
+	if unsorted > 0 {
 		command := "tofusort sort"
 		if sortOptions.IdentifiersFirst {
 			command += " --identifiers-first"
@@ -55,7 +53,7 @@ func runCheck(cmd *cobra.Command, args []string) error {
 			errs,
 			fmt.Errorf(
 				"found %d unsorted file(s); run '%s' to fix",
-				len(unsortedFiles),
+				unsorted,
 				command,
 			),
 		)

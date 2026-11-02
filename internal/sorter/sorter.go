@@ -63,15 +63,10 @@ type document struct {
 func SortFile(file *File, options Options) error {
 	d := &document{file: file, options: options}
 	d.body(file.Body, 0, len(file.Source), true, nil)
-	output := d.render(0, len(file.Source))
-	sorted, err := ParseFile(output)
+	// Formatting only changes whitespace, so one parse validates both steps.
+	sorted, err := ParseFile(format(d.render(0, len(file.Source))))
 	if err != nil {
 		return fmt.Errorf("sort produced invalid HCL; original file unchanged: %w", err)
-	}
-	formatted := format(sorted.Source)
-	sorted, err = ParseFile(formatted)
-	if err != nil {
-		return fmt.Errorf("format produced invalid HCL; original file unchanged: %w", err)
 	}
 	*file = *sorted
 	return nil

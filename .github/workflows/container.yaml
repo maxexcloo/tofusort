@@ -55,7 +55,10 @@ jobs:
         name: Extract Metadata
         uses: docker/metadata-action@v6
         with:
+          flavor: latest=false
           images: ${{ env.IMAGE_NAME }}
+          labels: |
+            org.opencontainers.image.licenses=AGPL-3.0-only
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=sha,format=long,enable={{is_default_branch}}

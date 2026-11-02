@@ -93,7 +93,7 @@ hard links, ownership and extended metadata aren't kept.
 ## Docker
 
 ```bash
-docker run --rm -v "$(pwd):/workspace" -w /workspace ghcr.io/maxexcloo/tofusort sort main.tf
+docker run --rm --user "$(id -u):$(id -g)" -v "$(pwd):/workspace" -w /workspace ghcr.io/maxexcloo/tofusort sort main.tf
 ```
 
 ## Development
