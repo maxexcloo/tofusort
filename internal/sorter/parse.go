@@ -3,6 +3,7 @@ package sorter
 import (
 	"bytes"
 	"fmt"
+	"slices"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
@@ -31,10 +32,10 @@ func ParseFile(content []byte) (*File, error) {
 	return &File{Source: content, Body: file.Body.(*hclsyntax.Body), Tokens: tokens}, nil
 }
 
+// Formatting after adding the final newline also trims that line's trailing spaces.
 func format(source []byte) []byte {
-	content := hclwrite.Format(source)
-	if len(content) > 0 && content[len(content)-1] != '\n' {
-		content = append(content, '\n')
+	if len(source) > 0 && source[len(source)-1] != '\n' {
+		source = append(slices.Clip(source), '\n')
 	}
-	return content
+	return hclwrite.Format(source)
 }

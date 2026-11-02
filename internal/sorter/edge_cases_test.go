@@ -54,6 +54,10 @@ func TestEdgeCases(t *testing.T) {
 		"value = { z = 1, a = 2, z = 3 }\n",
 		"value = { z = \"literal { text }\", a = true }\n",
 		"locals { name = \"value\" }",
+		" ",
+		"a = 1\n ",
+		"a = 1 ",
+		"# Note\n  ",
 	}
 	for i, input := range cases {
 		t.Run(fmt.Sprint(i), func(t *testing.T) { verifyPreservation(t, []byte(input), Options{}) })
