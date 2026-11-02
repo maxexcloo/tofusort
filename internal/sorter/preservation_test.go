@@ -206,60 +206,6 @@ func FuzzSortPreservesStructure(f *testing.F) {
 	})
 }
 
-func TestSortPreservesValues(t *testing.T) {
-	inputs := []string{
-		"value = { z = { b = 1, a = 2 }, z = 3 }\n",
-		"value = { z = <<-EOT\n  hello\n\n\n  world\n  EOT\na = 1\n}\n",
-		"value = { z = 1, a = 2 }\n",
-		"value = [{ z = 1, a = 2 }, { b = 3, a = 4 }]\n",
-		"value = { z = { b = 1, a = 2 }, a = [3, 2, 1] }\n",
-		"value = { z = <<EOT\nhello\n\n\nworld\nEOT\na = 1\n}\n",
-		"value = { z = 1, a = 2, z = 3 }\n",
-		"value = { z = \"literal { text }\", a = true }\n",
-	}
-	for _, input := range inputs {
-		t.Run(input, func(t *testing.T) {
-			file, err := ParseFile([]byte(input))
-			if err != nil {
-				t.Fatal(err)
-			}
-			if err := SortFile(file, Options{}); err != nil {
-				t.Fatal(err)
-			}
-			output := file.Source
-			before, d := hclsyntax.ParseConfig([]byte(input), "input.tfvars", hcl.InitialPos)
-			if d.HasErrors() {
-				t.Fatal(d)
-			}
-			after, d := hclsyntax.ParseConfig(output, "output.tfvars", hcl.InitialPos)
-			if d.HasErrors() {
-				t.Fatalf("invalid output: %s\n%s", d, output)
-			}
-			want, d := before.Body.(*hclsyntax.Body).Attributes["value"].Expr.Value(nil)
-			if d.HasErrors() {
-				t.Fatal(d)
-			}
-			got, d := after.Body.(*hclsyntax.Body).Attributes["value"].Expr.Value(nil)
-			if d.HasErrors() {
-				t.Fatal(d)
-			}
-			if !want.RawEquals(got) {
-				t.Fatalf("value changed:\n%s", output)
-			}
-			again, err := ParseFile(output)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if err := SortFile(again, Options{}); err != nil {
-				t.Fatal(err)
-			}
-			if second := again.Source; !bytes.Equal(output, second) {
-				t.Fatalf("not idempotent:\n%s\nthen:\n%s", output, second)
-			}
-		})
-	}
-}
-
 func TestSortPreservesNestedBlockOrder(t *testing.T) {
 	input := `resource "example" "test" {
   dynamic "rule" {

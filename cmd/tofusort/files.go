@@ -34,50 +34,31 @@ func visitPath(path, action string, visit func(string) error) error {
 }
 
 func visitDirectory(dir, action string, visit func(string) error) error {
+	// WalkDir does not follow even an explicitly supplied directory symlink.
+	target, err := filepath.EvalSymlinks(dir)
+	if err != nil {
+		return fmt.Errorf("failed to resolve directory %s: %w", dir, err)
+	}
 	var errs []error
-	visitFile := func(path string) {
-		if isTerraformFile(path) {
+	err = filepath.WalkDir(target, func(path string, d fs.DirEntry, err error) error {
+		if d != nil && d.IsDir() && path != target && (!recursive || d.Name() == ".git" || d.Name() == ".terraform") {
+			return fs.SkipDir
+		}
+		// Report paths under the directory as supplied, not its resolved target.
+		if rel, relErr := filepath.Rel(target, path); relErr == nil {
+			path = filepath.Join(dir, rel)
+		}
+		if err != nil {
+			errs = append(errs, fmt.Errorf("failed to access %s: %w", path, err))
+		} else if !d.IsDir() && isTerraformFile(path) {
 			if err := visit(path); err != nil {
 				errs = append(errs, fmt.Errorf("failed to %s %s: %w", action, path, err))
 			}
 		}
-	}
-
-	if recursive {
-		// WalkDir does not follow even an explicitly supplied directory symlink.
-		target, err := filepath.EvalSymlinks(dir)
-		if err != nil {
-			return fmt.Errorf("failed to resolve directory %s: %w", dir, err)
-		}
-		err = filepath.WalkDir(target, func(path string, d fs.DirEntry, err error) error {
-			if d != nil && d.IsDir() && path != target && (d.Name() == ".git" || d.Name() == ".terraform") {
-				return fs.SkipDir
-			}
-			// Report paths under the directory as supplied, not its resolved target.
-			if rel, relErr := filepath.Rel(target, path); relErr == nil {
-				path = filepath.Join(dir, rel)
-			}
-			if err != nil {
-				errs = append(errs, fmt.Errorf("failed to access %s: %w", path, err))
-			} else if !d.IsDir() {
-				visitFile(path)
-			}
-			return nil
-		})
-		if err != nil {
-			errs = append(errs, err)
-		}
-		return errors.Join(errs...)
-	}
-
-	entries, err := os.ReadDir(dir)
+		return nil
+	})
 	if err != nil {
-		return fmt.Errorf("failed to read directory %s: %w", dir, err)
-	}
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			visitFile(filepath.Join(dir, entry.Name()))
-		}
+		errs = append(errs, err)
 	}
 	return errors.Join(errs...)
 }

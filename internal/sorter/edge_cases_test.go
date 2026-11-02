@@ -47,6 +47,13 @@ func TestEdgeCases(t *testing.T) {
 		"# CR runs\r\r\n",
 		"A0=b\r",
 		"A=1E000020000000\n",
+		"value = { z = <<-EOT\n  hello\n\n\n  world\n  EOT\na = 1\n}\n",
+		"value = [{ z = 1, a = 2 }, { b = 3, a = 4 }]\n",
+		"value = { z = { b = 1, a = 2 }, a = [3, 2, 1] }\n",
+		"value = { z = <<EOT\nhello\n\n\nworld\nEOT\na = 1\n}\n",
+		"value = { z = 1, a = 2, z = 3 }\n",
+		"value = { z = \"literal { text }\", a = true }\n",
+		"locals { name = \"value\" }",
 	}
 	for i, input := range cases {
 		t.Run(fmt.Sprint(i), func(t *testing.T) { verifyPreservation(t, []byte(input), Options{}) })

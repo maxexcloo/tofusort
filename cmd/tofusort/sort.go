@@ -16,7 +16,7 @@ var sortCmd = &cobra.Command{
 	Args:  cobra.MinimumNArgs(1),
 	RunE:  runSort,
 	Short: "Sort OpenTofu/Terraform files alphabetically",
-	Use:   "sort [file or directory]",
+	Use:   "sort <path>...",
 	Long: `Sort OpenTofu/Terraform configuration files alphabetically.
 Sorts blocks by type, then by name within type, and attributes within blocks.`,
 }
@@ -44,20 +44,19 @@ func processFile(path string) error {
 		return err
 	}
 
-	if dryRun {
-		if !bytes.Equal(content, newContent) {
-			fmt.Printf("Would modify: %s\n", path)
-		}
+	if bytes.Equal(content, newContent) {
 		return nil
 	}
 
-	if !bytes.Equal(content, newContent) {
-		if err := replaceFile(path, newContent); err != nil {
-			return fmt.Errorf("failed to write file: %w", err)
-		}
-		fmt.Printf("Sorted: %s\n", path)
+	if dryRun {
+		fmt.Printf("Would modify: %s\n", path)
+		return nil
 	}
 
+	if err := replaceFile(path, newContent); err != nil {
+		return fmt.Errorf("failed to write file: %w", err)
+	}
+	fmt.Printf("Sorted: %s\n", path)
 	return nil
 }
 
