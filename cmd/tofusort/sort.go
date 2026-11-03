@@ -75,19 +75,17 @@ func replaceFile(path string, content []byte) error {
 		return err
 	}
 	defer func() { _ = os.Remove(temp.Name()) }()
-	if _, err := temp.Write(content); err != nil {
-		_ = temp.Close()
-		return err
+	_, err = temp.Write(content)
+	if err == nil {
+		err = temp.Chmod(info.Mode().Perm())
 	}
-	if err := temp.Chmod(info.Mode().Perm()); err != nil {
-		_ = temp.Close()
-		return err
+	if err == nil {
+		err = temp.Sync()
 	}
-	if err := temp.Sync(); err != nil {
-		_ = temp.Close()
-		return err
+	if closeErr := temp.Close(); err == nil {
+		err = closeErr
 	}
-	if err := temp.Close(); err != nil {
+	if err != nil {
 		return err
 	}
 	return os.Rename(temp.Name(), target)
