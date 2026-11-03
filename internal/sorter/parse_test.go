@@ -36,22 +36,18 @@ other = 1
 	}
 }
 
-func TestParseFileNormalisesCRLF(t *testing.T) {
-	file, err := ParseFile([]byte("a = 1\r\nb = <<EOT\r\nx\r\nEOT\r\n"))
-	if err != nil {
-		t.Fatal(err)
+func TestParseFileNormalisesLineEndings(t *testing.T) {
+	tests := map[string]string{
+		"a = 1\r\nb = <<EOT\r\nx\r\nEOT\r\n": "a = 1\nb = <<EOT\nx\nEOT\n",
+		"a = 1\rb = 2\r\r\nc = 3\r":          "a = 1\nb = 2\n\nc = 3\n",
 	}
-	if want := "a = 1\nb = <<EOT\nx\nEOT\n"; string(file.Source) != want {
-		t.Fatalf("source = %q, want %q", file.Source, want)
-	}
-}
-
-func TestParseFileNormalisesLoneCR(t *testing.T) {
-	file, err := ParseFile([]byte("a = 1\rb = 2\r\r\nc = 3\r"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if want := "a = 1\nb = 2\n\nc = 3\n"; string(file.Source) != want {
-		t.Fatalf("source = %q, want %q", file.Source, want)
+	for input, want := range tests {
+		file, err := ParseFile([]byte(input))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(file.Source) != want {
+			t.Errorf("source = %q, want %q", file.Source, want)
+		}
 	}
 }
