@@ -77,8 +77,8 @@ whatever the value layout. Other object keys keep their usual grouping, and
 comment boundaries and list element order are kept.
 
 List elements, function arguments and expressions inside string templates keep
-their order. Unknown top-level block types stay put as fixed
-boundaries, so procedural constructs aren't shuffled.
+their order. Unknown top-level block types stay put as fixed boundaries, so
+procedural constructs aren't shuffled.
 
 Recognised top-level blocks are ordered `terraform`, `provider`, `variable`,
 `locals`, `data`, `resource`, `module`, `output`, then alphabetically by label
