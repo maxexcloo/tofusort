@@ -1,7 +1,7 @@
 # tofusort
 
-Sorts OpenTofu and Terraform HCL files. It's written in Go and uses the native
-HCL parser. It handles `.tf` and `.tfvars` files, but not JSON configuration.
+Sorts OpenTofu and Terraform HCL files. It handles `.tf` and `.tfvars` files, but
+not JSON configuration.
 
 ## Installation
 
@@ -64,10 +64,9 @@ stay where they are.
 HCL's formatter handles indentation and alignment. Objects stay inline when no
 newline separates their entries, even if a value spans lines, and entries in
 multiline objects keep their own trailing commas. The sorter puts blank lines
-between attribute groups and blocks. It doesn't rewrite literal or template
-contents or run regular expressions over source text. CRLF and lone CR line
-endings are normalised to LF, so `check` reports those files as unsorted until
-`sort` rewrites them.
+between attribute groups and blocks. Literal and template contents are preserved.
+CRLF and lone CR line endings are normalised to LF, so `check` reports those
+files as unsorted until `sort` rewrites them.
 
 Bare and quoted literal object keys follow the same single-line-first rule,
 including objects inside functions, comprehensions and type constraints. Objects
@@ -85,10 +84,9 @@ Recognised top-level blocks are ordered `terraform`, `provider`, `variable`,
 `locals`, `data`, `resource`, `module`, `output`, then alphabetically by label
 within each type. Equal labels keep their source order.
 
-Output is parsed again before anything is written. tofusort writes a temporary
-file next to the original, flushes it and renames it over the original, keeping
-ordinary permission bits and symbolic links. The replacement is a new inode, so
-hard links, ownership and extended metadata aren't kept.
+Output is validated before atomically replacing the original file, keeping
+ordinary permission bits and symbolic links. Hard links, ownership and extended
+metadata aren't kept.
 
 ## Docker
 
