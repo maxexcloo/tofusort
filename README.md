@@ -37,56 +37,20 @@ go install github.com/maxexcloo/tofusort/cmd/tofusort@latest
 ./tofusort check --identifiers-first main.tf
 ```
 
-Both commands take multiple paths and keep going when one fails, then report
-every error with its file. `check` exits non-zero for unsorted, invalid or
-inaccessible inputs. Directory scans skip unsupported extensions, but naming an
-unsupported file directly is an error. Use `--` before filenames that start with
-a dash. Directory symlinks you pass in are followed, including with
-`--recursive`, but directory symlinks found during a scan aren't. Recursive scans
-skip `.git` and `.terraform` directories below the given root.
+`check` exits non-zero for unsorted, invalid or inaccessible inputs.
 
 ## Sorting Rules
 
-Attributes with single-line values come first, then multiline values, sorted
-alphabetically within each group. Following the HashiCorp style guide,
-meta-arguments go first as one group: `source`, `version`, `count` and
-`for_each` in modules; `count`, `for_each` and `provider` in resources and data
-sources; `count` and `for_each` in providers. `depends_on` goes after the
-ordinary attributes in these bodies. Nested blocks come after attributes and keep
-their original order.
+Following the HashiCorp style guide, meta-arguments such as `source`, `count`
+and `for_each` come first and `depends_on` follows the other attributes. Other
+attributes and literal object keys sort alphabetically, single-line values
+before multiline ones, followed by nested blocks in their original order. List
+elements, function arguments and objects with computed keys keep their order.
 
-Comment lines directly above an entry and trailing comments on the same line stay
-with that entry. An ambiguous comment between inline peers keeps those peers in
-place. Detached section comments act as boundaries, so entries on either side
-are never mixed. File headers and footers separated from entries by blank lines
-stay where they are.
-
-HCL's formatter handles indentation and alignment. Objects stay inline when no
-newline separates their entries, even if a value spans lines, and entries in
-multiline objects keep their own trailing commas. The sorter puts blank lines
-between attribute groups and blocks. Literal and template contents are preserved.
-CRLF and lone CR line endings are normalised to LF, so `check` reports those
-files as unsorted until `sort` rewrites them.
-
-Bare and quoted literal object keys follow the same single-line-first rule,
-including objects inside functions, comprehensions and type constraints. Objects
-with computed or duplicate keys keep their peer order, though any child objects
-that can be sorted on their own still are. With `--identifiers-first`, objects
-directly inside list literals put `type`, `name`, then `id` before other keys,
-whatever the value layout. Other object keys keep their usual grouping, and
-comment boundaries and list element order are kept.
-
-List elements, function arguments and expressions inside string templates keep
-their order. Unknown top-level block types stay put as fixed boundaries, so
-procedural constructs aren't shuffled.
-
-Recognised top-level blocks are ordered `terraform`, `provider`, `variable`,
-`locals`, `data`, `resource`, `module`, `output`, then alphabetically by label
-within each type. Equal labels keep their source order.
-
-Output is validated before atomically replacing the original file, keeping
-ordinary permission bits and symbolic links. Hard links, ownership and extended
-metadata aren't kept.
+Top-level blocks are ordered `terraform`, `provider`, `variable`, `locals`,
+`data`, `resource`, `module`, `output`, then by label; unknown block types stay
+in place. Comments stay with the entry they precede or trail, and detached
+comments act as boundaries that entries never cross.
 
 ## Docker
 
