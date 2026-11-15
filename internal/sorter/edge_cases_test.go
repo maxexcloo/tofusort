@@ -40,6 +40,7 @@ func TestEdgeCases(t *testing.T) {
 		"x = \"%{ for x in var.x }${x}%{ endfor }\"\n",
 		"variable \"x\" { type = list(object({ z=optional(string), a=number })) }\n",
 		"resource \"x\" \"y\" {\nz=1\na=2\nlifecycle { prevent_destroy=true }\nprovisioner \"local-exec\" { command=\"first\" }\nprovisioner \"local-exec\" { command=\"second\" }\n}\n",
+		"resource \"x\" \"y\" {\ndynamic \"rule\" {\nfor_each = [\"z\"]\ncontent { name = \"z\" }\n}\nrule { name = \"middle\" }\ndynamic \"rule\" {\nfor_each = [\"a\"]\ncontent { name = \"a\" }\n}\n}\n",
 		"run \"z\" { command=apply }\nrun \"a\" { command=plan }\n",
 		"resource \"z\" \"x\" {}\nunknown {}\nresource \"a\" \"x\" {}\n",
 		"z=1\r\na=2\r\n",
@@ -182,19 +183,11 @@ locals {
 
 # File footer
 `
-	output := verifyPreservation(t, []byte(input), Options{})
-	if string(output) != expected {
-		t.Fatalf("unexpected sorting:\n%s", output)
-	}
+	testSorting(t, input, expected)
 }
 
 func TestDetachedCommentsAreBoundaries(t *testing.T) {
-	input := "z=1\ny=2\n\n# Next section\n\nb=3\na=4\n"
-	output := verifyPreservation(t, []byte(input), Options{})
-	expected := "y = 2\nz = 1\n\n# Next section\n\na = 4\nb = 3\n"
-	if string(output) != expected {
-		t.Fatalf("section boundary changed:\n%s", output)
-	}
+	testSorting(t, "z=1\ny=2\n\n# Next section\n\nb=3\na=4\n", "y = 2\nz = 1\n\n# Next section\n\na = 4\nb = 3\n")
 }
 
 func TestSortObjectsInsideExpressions(t *testing.T) {
@@ -218,29 +211,18 @@ func TestSortObjectsInsideExpressions(t *testing.T) {
 }
 
 func TestInlineCommentDoesNotCaptureNextComment(t *testing.T) {
-	input := "z = 1 # Z inline\n# A note\na = 2\n"
-	expected := "# A note\na = 2\nz = 1 # Z inline\n"
-	output := verifyPreservation(t, []byte(input), Options{})
-	if string(output) != expected {
-		t.Fatalf("comment attached to wrong entry:\n%s", output)
-	}
+	testSorting(t, "z = 1 # Z inline\n# A note\na = 2\n", "# A note\na = 2\nz = 1 # Z inline\n")
 }
 
 func TestTrailingSpacesDoNotJoinMovedComment(t *testing.T) {
 	for _, input := range []string{"B=0#\nA=0 \n", "B=0#\nA=0 "} {
-		output := verifyPreservation(t, []byte(input), Options{})
-		if expected := "A = 0\nB = 0 #\n"; string(output) != expected {
-			t.Fatalf("unexpected output for %q:\n%q", input, output)
-		}
+		testSorting(t, input, "A = 0\nB = 0 #\n")
 	}
 }
 
 func TestAmbiguousInlineCommentKeepsPeerOrder(t *testing.T) {
 	input := "x = { z = 1, /* between peers */ a = 2 }\n"
-	output := verifyPreservation(t, []byte(input), Options{})
-	if string(output) != input {
-		t.Fatalf("ambiguous comment moved:\n%s", output)
-	}
+	testSorting(t, input, input)
 }
 
 func TestMultilineObjectEntriesKeepCommas(t *testing.T) {
@@ -249,16 +231,10 @@ func TestMultilineObjectEntriesKeepCommas(t *testing.T) {
 		"x = {\n  b = 1, # B\n  a = 2\n}\n": "x = {\n  a = 2\n  b = 1, # B\n}\n",
 	}
 	for input, expected := range cases {
-		if output := verifyPreservation(t, []byte(input), Options{}); string(output) != expected {
-			t.Errorf("unexpected commas for %q:\n%s", input, output)
-		}
+		testSorting(t, input, expected)
 	}
 }
 
 func TestInlineObjectWithMultilineValueStaysInline(t *testing.T) {
-	input := "x = { b = {\n  y = 1\n}, a = 2 }\n"
-	expected := "x = { a = 2, b = {\n  y = 1\n} }\n"
-	if output := verifyPreservation(t, []byte(input), Options{}); string(output) != expected {
-		t.Fatalf("inline object layout changed:\n%s", output)
-	}
+	testSorting(t, "x = { b = {\n  y = 1\n}, a = 2 }\n", "x = { a = 2, b = {\n  y = 1\n} }\n")
 }

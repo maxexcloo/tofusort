@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM --platform=$BUILDPLATFORM golang:1.27.4-alpine3.24 AS builder
+FROM --platform=$BUILDPLATFORM golang:1.27.4-alpine3.24 AS build
 
 ARG TARGETARCH
 ARG TARGETOS
@@ -15,6 +15,6 @@ RUN CGO_ENABLED=0 GOARCH=$TARGETARCH GOOS=$TARGETOS go build -o /tofusort -trimp
 
 FROM scratch
 
-COPY --from=builder /tofusort /tofusort
+COPY --from=build /tofusort /tofusort
 
 ENTRYPOINT ["/tofusort"]

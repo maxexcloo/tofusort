@@ -2,6 +2,7 @@ package sorter
 
 import (
 	"bytes"
+	"cmp"
 	"fmt"
 	"slices"
 	"sort"
@@ -95,7 +96,7 @@ func (d *document) replace(start, end int, content []byte) {
 		}
 	}
 	d.edits = append(retained, edit{start, end, content})
-	sort.Slice(d.edits, func(i, j int) bool { return d.edits[i].start < d.edits[j].start })
+	slices.SortFunc(d.edits, func(a, b edit) int { return cmp.Compare(a.start, b.start) })
 }
 
 func (d *document) body(body *hclsyntax.Body, start, end int, root bool, meta []string) {
@@ -113,11 +114,11 @@ func (d *document) body(body *hclsyntax.Body, start, end int, root bool, meta []
 		entries = append(entries, entry{start: r.Start.Byte, end: r.End.Byte, key: key, group: group, content: content})
 	}
 	for _, block := range body.Blocks {
-		var meta []string
+		var blockMeta []string
 		if root {
-			meta = leadingMeta[block.Type]
+			blockMeta = leadingMeta[block.Type]
 		}
-		d.body(block.Body, block.OpenBraceRange.End.Byte, block.CloseBraceRange.Start.Byte, false, meta)
+		d.body(block.Body, block.OpenBraceRange.End.Byte, block.CloseBraceRange.Start.Byte, false, blockMeta)
 		r := block.Range()
 		item := entry{start: r.Start.Byte, end: r.End.Byte, group: groupBlock, block: true, content: d.render(r.Start.Byte, r.End.Byte)}
 		if root {
@@ -161,17 +162,14 @@ func (d *document) expression(expr hclsyntax.Expression) {
 		}
 		return nil
 	})
-	sort.Slice(objects, func(i, j int) bool { return objects[i].Range().Start.Byte > objects[j].Range().Start.Byte })
+	slices.SortFunc(objects, func(a, b *hclsyntax.ObjectConsExpr) int {
+		return cmp.Compare(b.Range().Start.Byte, a.Range().Start.Byte)
+	})
 	for _, object := range objects {
 		r := object.Range()
-		inTemplate := false
-		for _, template := range templates {
-			if r.Start.Byte >= template.Start.Byte && r.End.Byte <= template.End.Byte {
-				inTemplate = true
-				break
-			}
-		}
-		if inTemplate {
+		if slices.ContainsFunc(templates, func(template hcl.Range) bool {
+			return r.Start.Byte >= template.Start.Byte && r.End.Byte <= template.End.Byte
+		}) {
 			continue
 		}
 		var entries []entry
@@ -309,7 +307,7 @@ func (d *document) reorder(start, end int, entries []entry, object bool) {
 	if len(entries) == 0 {
 		return
 	}
-	sort.Slice(entries, func(i, j int) bool { return entries[i].start < entries[j].start })
+	slices.SortFunc(entries, func(a, b entry) int { return cmp.Compare(a.start, b.start) })
 	// Object layout follows the gaps around entries, not newlines inside values.
 	inline := object
 	previous := start
@@ -339,12 +337,7 @@ func (d *document) reorder(start, end int, entries []entry, object bool) {
 		}
 		out.Write(d.file.Source[cursor:entries[first].start])
 		run := append([]entry(nil), entries[first:last]...)
-		sort.SliceStable(run, func(i, j int) bool {
-			if run[i].group != run[j].group {
-				return run[i].group < run[j].group
-			}
-			return run[i].key < run[j].key
-		})
+		slices.SortStableFunc(run, func(a, b entry) int { return cmp.Or(cmp.Compare(a.group, b.group), strings.Compare(a.key, b.key)) })
 		for i, item := range run {
 			if i > 0 {
 				if inline {

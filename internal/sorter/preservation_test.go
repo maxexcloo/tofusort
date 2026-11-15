@@ -205,34 +205,3 @@ func FuzzSortPreservesStructure(f *testing.F) {
 		verifyPreservation(t, []byte(src), Options{IdentifiersFirst: true})
 	})
 }
-
-func TestSortPreservesNestedBlockOrder(t *testing.T) {
-	input := `resource "example" "test" {
-  dynamic "rule" {
-    for_each = ["z"]
-    content { name = "z" }
-  }
-  rule { name = "middle" }
-  dynamic "rule" {
-    for_each = ["a"]
-    content { name = "a" }
-  }
-  provisioner "local-exec" { command = "first" }
-  provisioner "remote-exec" { inline = ["second"] }
-}
-`
-	file, err := ParseFile([]byte(input))
-	if err != nil {
-		t.Fatal(err)
-	}
-	blocks := file.Body.Blocks[0].Body.Blocks
-	if err := SortFile(file, Options{}); err != nil {
-		t.Fatal(err)
-	}
-	got := file.Body.Blocks[0].Body.Blocks
-	for i := range blocks {
-		if got[i].Type != blocks[i].Type || strings.Join(got[i].Labels, "\x00") != strings.Join(blocks[i].Labels, "\x00") {
-			t.Fatalf("nested blocks reordered:\n%s", file.Source)
-		}
-	}
-}
