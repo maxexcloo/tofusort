@@ -28,7 +28,6 @@ func TestSortDirectoryContinuesAfterInvalidFile(t *testing.T) {
 	for _, recurse := range []bool{false, true} {
 		t.Run(fmt.Sprint(recurse), func(t *testing.T) {
 			recursive = recurse
-			dryRun = false
 			t.Cleanup(func() { recursive = false })
 			root := t.TempDir()
 			directory := root
@@ -133,7 +132,6 @@ func TestCheckAndDryRunDoNotMutate(t *testing.T) {
 }
 
 func TestSortPreservesModeAndSymlink(t *testing.T) {
-	dryRun = false
 	dir := t.TempDir()
 	target := filepath.Join(dir, "target.tf")
 	if err := os.WriteFile(target, []byte("z = 1\na = 2\n"), 0o640); err != nil {
@@ -217,8 +215,7 @@ func TestCommandsFollowExplicitDirectorySymlink(t *testing.T) {
 	for _, recurse := range []bool{false, true} {
 		t.Run(fmt.Sprint(recurse), func(t *testing.T) {
 			recursive = recurse
-			dryRun = false
-			t.Cleanup(func() { recursive = false; dryRun = false })
+			t.Cleanup(func() { recursive = false })
 			root := t.TempDir()
 			dir := filepath.Join(root, "real")
 			if err := os.Mkdir(dir, 0o700); err != nil {
@@ -268,7 +265,6 @@ func TestCommandsFollowExplicitDirectorySymlink(t *testing.T) {
 }
 
 func TestSortWritesLFForCRLFInput(t *testing.T) {
-	dryRun = false
 	inputs := map[string]string{"sorted.tf": "a = 2\r\nz = 1\r\n", "unsorted.tf": "z = 1\r\na = 2\r\n"}
 	for name, input := range inputs {
 		t.Run(name, func(t *testing.T) {

@@ -12,11 +12,7 @@ import (
 	"github.com/maxexcloo/tofusort/internal/sorter"
 )
 
-var (
-	recursive           bool
-	sortOptions         sorter.Options
-	terraformExtensions = []string{".tf", ".tfvars"}
-)
+var terraformExtensions = []string{".tf", ".tfvars"}
 
 // visitPath returns errors that already name the file or directory involved.
 func visitPath(path, action string, visit func(string) error) error {
@@ -65,11 +61,11 @@ func visitDirectory(dir, action string, visit func(string) error) error {
 
 func sortedContent(path string) ([]byte, []byte, error) {
 	if !isTerraformFile(path) {
-		return nil, nil, fmt.Errorf("unsupported file format: %s (expected %s)", path, strings.Join(terraformExtensions, " or "))
+		return nil, nil, fmt.Errorf("unsupported file format (expected %s)", strings.Join(terraformExtensions, " or "))
 	}
 	content, err := os.ReadFile(path)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to read file: %w", err)
+		return nil, nil, err
 	}
 	file, err := sorter.ParseFile(content)
 	if err != nil {
