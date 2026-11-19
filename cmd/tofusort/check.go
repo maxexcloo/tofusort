@@ -45,18 +45,7 @@ func runCheck(cmd *cobra.Command, args []string) error {
 	}
 
 	if unsorted > 0 {
-		command := "tofusort sort"
-		if sortOptions.IdentifiersFirst {
-			command += " --identifiers-first"
-		}
-		errs = append(
-			errs,
-			fmt.Errorf(
-				"found %d unsorted file(s); run '%s' to fix",
-				unsorted,
-				command,
-			),
-		)
+		errs = append(errs, fmt.Errorf("found %d unsorted file(s); rerun as 'tofusort sort' with the same flags and paths", unsorted))
 	}
 
 	if len(errs) == 0 {

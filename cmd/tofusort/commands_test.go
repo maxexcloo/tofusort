@@ -185,7 +185,7 @@ func TestIdentifiersFirstFlag(t *testing.T) {
 		t.Fatalf("default policy rejected sorted input: %v", err)
 	}
 	rootCmd.SetArgs([]string{"check", "--identifiers-first", path})
-	if err := rootCmd.Execute(); err == nil || !strings.Contains(err.Error(), "tofusort sort --identifiers-first") {
+	if err := rootCmd.Execute(); err == nil || !strings.Contains(err.Error(), "'tofusort sort' with the same flags and paths") {
 		t.Fatalf("check missed identifier ordering: %v", err)
 	}
 	rootCmd.SetArgs([]string{"sort", "--dry-run", "--identifiers-first", path})
