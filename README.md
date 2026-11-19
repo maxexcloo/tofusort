@@ -41,11 +41,12 @@ go install github.com/maxexcloo/tofusort/cmd/tofusort@latest
 
 ## Sorting Rules
 
-Following the HashiCorp style guide, meta-arguments such as `source`, `count`
-and `for_each` come first and `depends_on` follows the other attributes. Other
-attributes and literal object keys sort alphabetically, single-line values
-before multiline ones, followed by nested blocks in their original order. List
-elements, function arguments and objects with computed keys keep their order.
+In top-level `data`, `module`, `provider` and `resource` blocks, leading
+meta-arguments such as `source`, `count` and `for_each` come first and
+`depends_on` follows the other attributes. Other attributes and literal object
+keys sort alphabetically, single-line values before multiline ones, followed by
+nested blocks in their original order. List elements, function arguments and
+objects with computed keys keep their order.
 
 Top-level blocks are ordered `terraform`, `provider`, `variable`, `locals`,
 `data`, `resource`, `module`, `output`, then by label; unknown block types stay
