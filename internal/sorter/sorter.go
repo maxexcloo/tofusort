@@ -61,16 +61,19 @@ type document struct {
 	options Options
 }
 
-func SortFile(file *File, options Options) error {
+func SortFile(content []byte, options Options) ([]byte, error) {
+	file, err := ParseFile(content)
+	if err != nil {
+		return nil, err
+	}
 	d := &document{file: file, options: options}
 	d.body(file.Body, 0, len(file.Source), true, nil)
 	// Formatting only changes whitespace, so one parse validates both steps.
-	sorted, err := ParseFile(format(d.render(0, len(file.Source))))
-	if err != nil {
-		return fmt.Errorf("sort produced invalid HCL; original file unchanged: %w", err)
+	sorted := format(d.render(0, len(file.Source)))
+	if _, diags := hclsyntax.ParseConfig(sorted, "", hcl.InitialPos); diags.HasErrors() {
+		return nil, fmt.Errorf("sort produced invalid HCL; original file unchanged: %s", diags.Error())
 	}
-	*file = *sorted
-	return nil
+	return sorted, nil
 }
 
 func (d *document) render(start, end int) []byte {
@@ -106,6 +109,8 @@ func (d *document) body(body *hclsyntax.Body, start, end int, root bool, meta []
 		r := attr.Range()
 		content := d.render(r.Start.Byte, r.End.Byte)
 		group, key := d.valueGroup(attr.Expr), name
+		// The entry's rendered bytes already contain its child edits.
+		d.edits = d.edits[:0]
 		if i := slices.Index(meta, name); i >= 0 {
 			group, key = groupLeading, fmt.Sprint(i)
 		} else if meta != nil && name == "depends_on" {
@@ -121,6 +126,7 @@ func (d *document) body(body *hclsyntax.Body, start, end int, root bool, meta []
 		d.body(block.Body, block.OpenBraceRange.End.Byte, block.CloseBraceRange.Start.Byte, false, blockMeta)
 		r := block.Range()
 		item := entry{start: r.Start.Byte, end: r.End.Byte, group: groupBlock, block: true, content: d.render(r.Start.Byte, r.End.Byte)}
+		d.edits = d.edits[:0]
 		if root {
 			priority, known := blockTypeOrder[block.Type]
 			item.group = groupRootBlock + priority

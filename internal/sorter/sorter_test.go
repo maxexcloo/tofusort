@@ -24,14 +24,11 @@ locals {
 
 # File footer
 `
-	file, err := ParseFile([]byte(input))
+	sorted, err := SortFile([]byte(input), Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := SortFile(file, Options{}); err != nil {
-		t.Fatal(err)
-	}
-	output := string(file.Source)
+	output := string(sorted)
 	for _, comment := range []string{"# File header", "# Keep this with z.", "# Inline note", "# Object note", "# Footer inside locals", "# File footer"} {
 		if strings.Count(output, comment) != 1 {
 			t.Errorf("comment %q was lost or duplicated:\n%s", comment, output)

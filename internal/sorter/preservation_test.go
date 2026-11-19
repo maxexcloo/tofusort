@@ -23,20 +23,25 @@ func verifyPreservation(t testing.TB, input []byte, options Options) []byte {
 	}
 	before := bodySignature(file.Body, true)
 	comments := commentSignature(file)
-	if err := SortFile(file, options); err != nil {
+	output, err := SortFile(input, options)
+	if err != nil {
 		t.Fatal(err)
 	}
-	output := file.Source
+	file, err = ParseFile(output)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if got := bodySignature(file.Body, true); got != before {
 		t.Fatalf("configuration meaning changed\nbefore: %s\nafter: %s", before, got)
 	}
 	if got := commentSignature(file); got != comments {
 		t.Fatalf("comments changed: %s != %s", got, comments)
 	}
-	if err := SortFile(file, options); err != nil {
+	again, err := SortFile(output, options)
+	if err != nil {
 		t.Fatal(err)
 	}
-	if again := file.Source; !bytes.Equal(again, output) {
+	if !bytes.Equal(again, output) {
 		t.Fatalf("not idempotent:\n%s\nthen:\n%s", output, again)
 	}
 	return output
