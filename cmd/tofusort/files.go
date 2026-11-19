@@ -67,14 +67,11 @@ func sortedContent(path string) ([]byte, []byte, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	file, err := sorter.ParseFile(content)
+	sorted, err := sorter.SortFile(content, sortOptions)
 	if err != nil {
 		return nil, nil, err
 	}
-	if err := sorter.SortFile(file, sortOptions); err != nil {
-		return nil, nil, err
-	}
-	return content, file.Source, nil
+	return content, sorted, nil
 }
 
 func isTerraformFile(path string) bool {

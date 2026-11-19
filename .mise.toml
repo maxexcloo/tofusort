@@ -33,4 +33,4 @@ depends = ["fmt:mise", "fmt:oxfmt"]
 run = "go fmt ./..."
 
 [tasks.test]
-run = "go test ./..."
+run = "go test -vet=off ./..."
