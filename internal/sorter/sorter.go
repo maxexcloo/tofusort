@@ -77,6 +77,10 @@ func SortFile(content []byte, options Options) ([]byte, error) {
 }
 
 func (d *document) render(start, end int) []byte {
+	if len(d.edits) == 0 {
+		// Clip capacity so appending comments cannot overwrite the source.
+		return d.file.Source[start:end:end]
+	}
 	var out bytes.Buffer
 	cursor := start
 	for _, change := range d.edits {
